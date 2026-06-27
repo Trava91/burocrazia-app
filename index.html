@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Burocrazia</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Burocrazia">
+  <meta name="mobile-web-app-capable" content="yes">
+  <!-- theme-color per i due temi (lo decide prefers-color-scheme) -->
+  <meta name="theme-color" content="#7C9461" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#2B2420" media="(prefers-color-scheme: dark)">
+
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ================= ONBOARDING (primo avvio / nessun token) ================= -->
+  <section id="onboarding" class="screen" hidden>
+    <div class="onboarding-inner">
+      <div class="brand"><span class="brand-glyph">📌</span><h1>Burocrazia</h1></div>
+      <p class="muted">Cruscotto delle tue liste — scadenze, appunti, spesa — direttamente sul repo GitHub. Serve un token per leggere e scrivere.</p>
+
+      <ol class="steps">
+        <li>Crea un <b>fine-grained PAT</b> su GitHub limitato al solo repo <code id="onb-repo-label">scadenzario</code>.</li>
+        <li>Dagli il permesso <b>Contents: Read and write</b> e una scadenza (es. 90 giorni).</li>
+        <li>Incollalo qui sotto. Resta solo su questo telefono (<code>localStorage</code>).</li>
+      </ol>
+      <a id="onb-pat-link" class="btn-link" target="_blank" rel="noopener"
+         href="https://github.com/settings/tokens?type=beta">Apri la pagina dei token →</a>
+
+      <form id="onboarding-form" autocomplete="off">
+        <label>Token (PAT)
+          <input id="onb-token" type="password" inputmode="text" placeholder="github_pat_…" required>
+        </label>
+        <details class="advanced">
+          <summary>Impostazioni avanzate</summary>
+          <label>Owner
+            <input id="onb-owner" type="text" placeholder="Trava91">
+          </label>
+          <label>Repo
+            <input id="onb-repo" type="text" placeholder="scadenzario">
+          </label>
+          <label>Bot Telegram (username, senza @)
+            <input id="onb-bot" type="text" placeholder="es. burocrazia_nico_bot">
+          </label>
+        </details>
+        <div id="onb-feedback" class="feedback" role="status"></div>
+        <button type="submit" id="onb-submit" class="btn-primary">Verifica e salva</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ================= APP ================= -->
+  <main id="app" class="screen" hidden>
+    <header class="app-header">
+      <h1 id="header-title">Burocrazia</h1>
+      <div class="header-right">
+        <span id="sync-status" class="sync muted" aria-live="polite"></span>
+        <button id="btn-settings" class="icon-btn" aria-label="Impostazioni">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Pannello Scadenze -->
+    <section id="panel-scadenze" class="panel" data-tab="scadenze">
+      <div class="section-head">
+        <h2>Scadenze</h2>
+        <label class="toggle-all">
+          <input type="checkbox" id="toggle-tutte"> tutte
+        </label>
+      </div>
+      <ul id="list-scadenze" class="list"></ul>
+    </section>
+
+    <!-- Pannello Appunti -->
+    <section id="panel-appunti" class="panel" data-tab="appunti" hidden>
+      <div class="section-head"><h2>Appunti</h2></div>
+      <ul id="list-appunti" class="list"></ul>
+    </section>
+
+    <!-- Pannello Spesa -->
+    <section id="panel-spesa" class="panel" data-tab="spesa" hidden>
+      <div class="section-head"><h2>Da comprare</h2></div>
+      <ul id="list-spesa" class="list"></ul>
+    </section>
+
+    <!-- Pannello Invia (minimale: deep-link a Telegram) -->
+    <section id="panel-invia" class="panel" data-tab="invia" hidden>
+      <div class="invia-inner">
+        <p class="muted">Vocali e foto le elabora il PC via Telegram (trascrizione e visione). Da qui apri il bot e mandale come al solito.</p>
+        <a id="btn-vocale" class="btn-big" href="#">🎤 Manda un vocale</a>
+        <a id="btn-foto" class="btn-big" href="#">📷 Manda una foto</a>
+        <p id="invia-nobot" class="muted small" hidden>Imposta lo username del bot nelle impostazioni per abilitare i collegamenti.</p>
+      </div>
+    </section>
+
+    <!-- FAB: nuovo elemento nel tab corrente -->
+    <button id="fab" class="fab" aria-label="Aggiungi">+</button>
+
+    <!-- Tab bar -->
+    <nav class="tabbar" role="tablist">
+      <button class="tab active" data-tab="scadenze" role="tab"><span>📌</span><small>Scadenze</small></button>
+      <button class="tab" data-tab="appunti" role="tab"><span>📝</span><small>Appunti</small></button>
+      <button class="tab" data-tab="spesa" role="tab"><span>🛒</span><small>Spesa</small></button>
+      <button class="tab" data-tab="invia" role="tab"><span>✉️</span><small>Invia</small></button>
+    </nav>
+  </main>
+
+  <!-- ================= IMPOSTAZIONI (overlay) ================= -->
+  <section id="settings" class="screen overlay" hidden>
+    <header class="app-header">
+      <button id="settings-back" class="icon-btn" aria-label="Indietro">←</button>
+      <h1>Impostazioni</h1>
+      <span></span>
+    </header>
+    <div class="settings-inner">
+      <div class="kv"><span>Repo</span><b id="set-repo">—</b></div>
+      <div class="kv"><span>Ultimo sync</span><b id="set-lastsync">—</b></div>
+      <div class="kv"><span>Versione</span><b id="set-version">—</b></div>
+
+      <label>Bot Telegram (username, senza @)
+        <input id="set-bot" type="text" placeholder="es. burocrazia_nico_bot">
+      </label>
+      <button id="set-save-bot" class="btn-secondary">Salva bot</button>
+
+      <hr>
+      <button id="set-change-token" class="btn-secondary">Cambia token</button>
+      <a id="set-revoke" class="btn-link" target="_blank" rel="noopener"
+         href="https://github.com/settings/tokens?type=beta">Revoca il token su GitHub →</a>
+      <button id="set-remove-token" class="btn-danger">Rimuovi token da questo telefono</button>
+    </div>
+  </section>
+
+  <!-- ================= SHEET (form aggiungi / modifica) ================= -->
+  <div id="sheet-backdrop" class="backdrop" hidden></div>
+  <section id="sheet" class="sheet" hidden aria-modal="true" role="dialog">
+    <header class="sheet-head">
+      <h2 id="sheet-title">Nuovo</h2>
+      <button id="sheet-close" class="icon-btn" aria-label="Chiudi">✕</button>
+    </header>
+    <form id="sheet-form" class="sheet-form"></form>
+  </section>
+
+  <!-- ================= TOAST ================= -->
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- ================= SPINNER (primo load) ================= -->
+  <div id="spinner" class="spinner-wrap" hidden><div class="spinner"></div></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

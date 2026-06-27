@@ -1,0 +1,7 @@
+# Configurazione locale (il PAT lo inserisce l'utente a runtime: mai nel repo).
+config.local.*
+
+# Sistema operativo / editor
+.DS_Store
+Thumbs.db
+.vscode/

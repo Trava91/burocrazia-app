@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Burocrazia">
+  <!-- Sfondo pieno: necessario per le icone maskable (Android ritaglia, niente trasparenza). -->
+  <rect width="512" height="512" fill="#7C9461"/>
+  <!-- Contenuto dentro la safe-zone centrale (~80%): margini ~64px su ogni lato. -->
+  <g transform="translate(0,0)">
+    <!-- Clipboard / checklist -->
+    <rect x="148" y="128" width="216" height="280" rx="24" fill="#FFFDF9"/>
+    <rect x="208" y="108" width="96" height="48" rx="16" fill="#4D6438"/>
+    <!-- Righe con spunte -->
+    <g stroke="#7C9461" stroke-width="18" stroke-linecap="round" fill="none">
+      <path d="M180 212 l20 20 l36 -40"/>
+      <path d="M180 288 l20 20 l36 -40"/>
+      <path d="M180 364 l20 20 l36 -40"/>
+    </g>
+    <g stroke="#B3A48D" stroke-width="16" stroke-linecap="round">
+      <line x1="252" y1="216" x2="328" y2="216"/>
+      <line x1="252" y1="292" x2="328" y2="292"/>
+      <line x1="252" y1="368" x2="328" y2="368"/>
+    </g>
+  </g>
+</svg>

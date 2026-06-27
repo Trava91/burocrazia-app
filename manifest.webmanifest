@@ -1,0 +1,20 @@
+{
+  "name": "Burocrazia",
+  "short_name": "Burocrazia",
+  "description": "Cruscotto delle liste burocrazia: scadenze, appunti e spesa, in tempo reale via GitHub.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#7C9461",
+  "background_color": "#F7F1E6",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
