@@ -5,7 +5,7 @@
 // (snapshot) per la lettura offline. Qui si cache-a solo lo "shell" statico.
 // Le scritture offline non sono supportate in v1.
 
-const CACHE = "buro-v4"; // bump a ogni deploy per invalidare lo shell
+const CACHE = "buro-v5"; // bump a ogni deploy per invalidare lo shell
 
 const SHELL = [
   "./",
@@ -40,19 +40,18 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;        // api.github.com: passa alla rete
 
-  // App shell: cache-first, con aggiornamento in background.
+  // App shell: NETWORK-FIRST. Online → sempre l'ultima versione (e aggiorna la
+  // cache); offline → fallback alla cache (o allo shell per la navigazione).
+  // Così ogni deploy si vede alla PRIMA ricarica, senza il "ricarica due volte".
   event.respondWith(
-    caches.match(req).then((cached) => {
-      const network = fetch(req)
-        .then((resp) => {
-          if (resp.ok) {
-            const copy = resp.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
-          }
-          return resp;
-        })
-        .catch(() => cached || caches.match("index.html")); // navigazione offline → shell
-      return cached || network;
-    })
+    fetch(req)
+      .then((resp) => {
+        if (resp.ok) {
+          const copy = resp.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return resp;
+      })
+      .catch(() => caches.match(req).then((c) => c || caches.match("index.html")))
   );
 });
