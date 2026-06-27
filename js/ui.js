@@ -408,12 +408,19 @@ export class UI {
     const edit = Boolean(item);
     const html = `
       <label>Titolo<input name="titolo" type="text" required value="${esc(item?.titolo || "")}"></label>
-      <label>Scadenza<input name="scadenza" type="date" value="${esc(item?.scadenza || "")}"></label>
+      <div class="row-2">
+        <label>Scadenza<input name="scadenza" type="date" value="${esc(item?.scadenza || "")}"></label>
+        <label>Ora avviso<input name="orario" type="time" value="${esc(item?.orario_notifica || "")}"></label>
+      </div>
       <div class="row-2">
         <label>Categoria<select name="categoria">${this._catOptions(item?.categoria || "personale")}</select></label>
         <label>Priorità<select name="priorita">${this._prioOptions(item?.priorita || "media")}</select></label>
       </div>
-      <label>Ricorrenza<select name="ricorrenza">${this._ricOptions(item?.ricorrenza || "")}</select></label>`;
+      <div class="row-2">
+        <label>Ricorrenza<select name="ricorrenza">${this._ricOptions(item?.ricorrenza || "")}</select></label>
+        <label>Preavviso (giorni)<input name="preavviso" type="number" min="0" inputmode="numeric" value="${esc(item?.preavviso_giorni ?? 30)}"></label>
+      </div>
+      <p class="form-hint">L'<b>ora</b> è facoltativa: se la metti, l'avviso arriva a quell'ora <b>e</b> alle 8:00. Il <b>preavviso</b> è quanti giorni prima inizia l'avviso del mattino.</p>`;
     this.openSheet(edit ? "Modifica scadenza" : "Nuova scadenza", html, (d) => {
       const campi = {
         titolo: d.titolo.trim(),
@@ -421,6 +428,8 @@ export class UI {
         categoria: d.categoria,
         ricorrenza: d.ricorrenza || null,
         priorita: d.priorita,
+        orario: d.orario || null,
+        preavviso: d.preavviso,
       };
       if (!campi.titolo) return;
       if (edit) this.run(this.store.modificaScadenza(item.id, campi));

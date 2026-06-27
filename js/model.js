@@ -145,7 +145,14 @@ function uniqueId(base, existingIds) {
 }
 
 // --- costruzione voci (schema completo) ------------------------------------
-export function newScadenza({ titolo, scadenza, categoria, ricorrenza, priorita }, items) {
+// preavviso: stringa/numero giorni (default 30). orario: "HH:MM" o vuoto/null.
+export function preavvisoGiorni(v, fallback = 30) {
+  const s = (v ?? "").toString().trim();
+  const n = parseInt(s, 10);
+  return s !== "" && Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+export function newScadenza({ titolo, scadenza, categoria, ricorrenza, priorita, orario, preavviso }, items) {
   const ids = new Set(items.map((x) => x.id));
   const id = uniqueId(slugScadenza(titolo), ids);
   const cat = CATEGORIE[categoria] ? categoria : "personale";
@@ -155,12 +162,14 @@ export function newScadenza({ titolo, scadenza, categoria, ricorrenza, priorita 
     categoria: cat,
     scadenza: scadenza || null,
     ricorrenza: RICORRENZA_MESI[ricorrenza] ? ricorrenza : null,
-    preavviso_giorni: 30,
+    preavviso_giorni: preavvisoGiorni(preavviso),
     stato: "attiva",
     priorita: PRIORITA_EMOJI[priorita] ? priorita : "media",
     note: "Aggiunta da app.",
     documento: null,
     azione: "",
+    orario_notifica: orario || null,
+    notificato: null,
   };
 }
 

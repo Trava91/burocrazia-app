@@ -5,7 +5,7 @@
 // (snapshot) per la lettura offline. Qui si cache-a solo lo "shell" statico.
 // Le scritture offline non sono supportate in v1.
 
-const CACHE = "buro-v2"; // bump a ogni deploy per invalidare lo shell
+const CACHE = "buro-v3"; // bump a ogni deploy per invalidare lo shell
 
 const SHELL = [
   "./",

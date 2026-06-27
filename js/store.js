@@ -203,8 +203,16 @@ export class Store {
   modificaScadenza(id, campi) {
     return this.mutate("scadenze", (arr) => arr.map((x) => {
       if (x.id !== id) return x;
-      const patch = { ...campi };
-      if ("scadenza" in patch && !patch.scadenza) patch.scadenza = null;
+      // Traduce i nomi del form nei campi del JSON; azzera `notificato` quando
+      // cambia data o ora, così l'avviso puntuale può ri-scattare.
+      const patch = {};
+      if ("titolo" in campi) patch.titolo = String(campi.titolo).trim();
+      if ("categoria" in campi) patch.categoria = campi.categoria;
+      if ("priorita" in campi) patch.priorita = campi.priorita;
+      if ("ricorrenza" in campi) patch.ricorrenza = campi.ricorrenza || null;
+      if ("scadenza" in campi) { patch.scadenza = campi.scadenza || null; patch.notificato = null; }
+      if ("preavviso" in campi) patch.preavviso_giorni = model.preavvisoGiorni(campi.preavviso, x.preavviso_giorni ?? 30);
+      if ("orario" in campi) { patch.orario_notifica = campi.orario || null; patch.notificato = null; }
       return { ...x, ...patch };
     }), `app: modifica scadenza ${id}`);
   }

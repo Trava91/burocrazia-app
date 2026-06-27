@@ -293,6 +293,7 @@ textarea { resize: vertical; min-height: 84px; }
 .sheet-head .icon-btn { color: var(--muted); }
 .sheet-form .row-2 { display: flex; gap: 10px; }
 .sheet-form .row-2 > * { flex: 1; }
+.form-hint { color: var(--muted); font-size: .82rem; line-height: 1.4; margin: 10px 2px 0; }
 
 /* ============ Toast ============ */
 .toast {
