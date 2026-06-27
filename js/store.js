@@ -16,7 +16,7 @@ const LS = {
   lastSync: "buro.lastSync",
 };
 
-const DEFAULTS = { owner: "Trava91", repo: "scadenzario" };
+const DEFAULTS = { owner: "Trava91", repo: "scadenzario", bot: "cluadetrascrizione_bot" };
 
 // I tre file e la chiave dell'array dentro ciascun JSON.
 const FILES = {
@@ -42,7 +42,7 @@ export class Store {
     this.token = localStorage.getItem(LS.token) || "";
     this.owner = localStorage.getItem(LS.owner) || DEFAULTS.owner;
     this.repo = localStorage.getItem(LS.repo) || DEFAULTS.repo;
-    this.bot = localStorage.getItem(LS.bot) || "";
+    this.bot = localStorage.getItem(LS.bot) || DEFAULTS.bot;
     this.api = new GitHubApi({ owner: this.owner, repo: this.repo, token: this.token });
   }
 

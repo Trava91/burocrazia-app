@@ -1,9 +1,17 @@
 // ui.js — render delle liste, tab, gesture swipe, form aggiungi/modifica, toast.
 // Tutta la manipolazione DOM vive qui; la logica dati sta in store/model.
 
-import { CATEGORIE, RICORRENZA_MESI, PRIORITA_EMOJI, fmtGiorni } from "./model.js";
+import { CATEGORIE, RICORRENZA_MESI, PRIORITA_EMOJI, fmtGiorni, parseISODate } from "./model.js";
 
 const $ = (sel) => document.querySelector(sel);
+
+// Data leggibile in italiano: "domenica 12 luglio 2026". null → testo neutro.
+function fmtDataEstesa(iso) {
+  const p = parseISODate(iso);
+  if (!p) return "Data da definire";
+  const d = new Date(p.y, p.m - 1, p.d);
+  return d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
 
 // --- toast (anche standalone, usato da main.js) -----------------------------
 // opts: { actionLabel, onAction, duration }
@@ -162,11 +170,12 @@ export class UI {
     const urgent = it._giorni !== null && it._giorni <= 0;
     const content = `
       <span class="prio">${prio}</span>
-      <div class="row-text">
+      <div class="row-text" data-expand>
         <div class="row-title">${esc(it.titolo)}</div>
         <div class="row-sub${urgent ? " urgent" : ""}">${esc(fmtGiorni(it._giorni))} · ${esc(CATEGORIE[it.categoria] || it.categoria)}${esc(ric)}</div>
+        <div class="row-date">📅 ${esc(fmtDataEstesa(it.scadenza))}</div>
       </div>`;
-    return this._buildRow({
+    const row = this._buildRow({
       id: it.id,
       content,
       primary: { cls: "act-done", label: "✓", run: () => this.run(this.store.completaScadenza(it.id)) },
@@ -175,6 +184,11 @@ export class UI {
         { cls: "act-del", label: "🗑️", run: () => this.run(this.store.eliminaScadenza(it.id)) },
       ],
     });
+    // tap sul testo = espandi/contrai (titolo intero + data di scadenza)
+    row.querySelector("[data-expand]")?.addEventListener("click", (e) => {
+      e.currentTarget.classList.toggle("expanded");
+    });
+    return row;
   }
 
   _appuntoRow(a) {

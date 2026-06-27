@@ -157,6 +157,11 @@ h2 { font-size: 1rem; font-weight: 600; margin: 0; }
 .row-sub { color: var(--muted); font-size: .82rem; margin-top: 2px; }
 .row-sub.urgent { color: var(--danger); font-weight: 600; }
 
+/* data estesa: nascosta finché la riga scadenza non viene toccata */
+.row-date { display: none; color: var(--muted); font-size: .82rem; margin-top: 4px; }
+.row-text.expanded .row-title { white-space: normal; }
+.row-text.expanded .row-date { display: block; }
+
 .chk {
   flex: 0 0 auto;
   width: 26px; height: 26px;
