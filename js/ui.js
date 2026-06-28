@@ -45,19 +45,6 @@ function esc(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-// Snap dell'ora-avviso al passo di 30 min: rete di sicurezza per i time-picker
-// mobili che ignorano step="1800" (il motore onora solo :00/:30, vedi notify_timed.py).
-function snap30(s) {
-  if (!s) return null;
-  const m = /^(\d{1,2}):(\d{2})$/.exec(s.trim());
-  if (!m) return null;
-  let tot = Math.round((+m[1] * 60 + +m[2]) / 30) * 30;
-  tot = ((tot % 1440) + 1440) % 1440; // 23:45 → 24:00 torna a 00:00
-  const h = String(Math.floor(tot / 60)).padStart(2, "0");
-  const min = String(tot % 60).padStart(2, "0");
-  return `${h}:${min}`;
-}
-
 export class UI {
   constructor(store) {
     this.store = store;
@@ -416,14 +403,36 @@ export class UI {
     return Object.keys(PRIORITA_EMOJI).map((k) =>
       `<option value="${k}"${k === sel ? " selected" : ""}>${PRIORITA_EMOJI[k]} ${k}</option>`).join("");
   }
+  _oraOptions(sel) {
+    let opts = `<option value="">—</option>`;
+    for (let h = 0; h < 24; h++) {
+      const hh = String(h).padStart(2, "0");
+      opts += `<option value="${hh}"${hh === sel ? " selected" : ""}>${hh}</option>`;
+    }
+    return opts;
+  }
 
   openScadenzaForm(item = null) {
     const edit = Boolean(item);
+    const orarioVal = item?.orario_notifica || "";
+    const oraSel = orarioVal.split(":")[0] || "";
+    const minSel = orarioVal.split(":")[1] === "30" ? "30" : "00";
     const html = `
       <label>Titolo<input name="titolo" type="text" required value="${esc(item?.titolo || "")}"></label>
       <div class="row-2">
         <label>Scadenza<input name="scadenza" type="date" value="${esc(item?.scadenza || "")}"></label>
-        <label>Ora avviso<input name="orario" type="time" step="1800" value="${esc(item?.orario_notifica || "")}"></label>
+        <div class="field">
+          <span class="field-cap">Ora avviso</span>
+          <div class="ora-pick">
+            <select name="ora_h">${this._oraOptions(oraSel)}</select>
+            <div class="seg">
+              <input type="radio" id="min00" name="minuti" value="00"${minSel === "00" ? " checked" : ""}>
+              <label for="min00">:00</label>
+              <input type="radio" id="min30" name="minuti" value="30"${minSel === "30" ? " checked" : ""}>
+              <label for="min30">:30</label>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="row-2">
         <label>Categoria<select name="categoria">${this._catOptions(item?.categoria || "personale")}</select></label>
@@ -433,7 +442,7 @@ export class UI {
         <label>Ricorrenza<select name="ricorrenza">${this._ricOptions(item?.ricorrenza || "")}</select></label>
         <label>Preavviso (giorni)<input name="preavviso" type="number" min="0" inputmode="numeric" value="${esc(item?.preavviso_giorni ?? 30)}"></label>
       </div>
-      <p class="form-hint">L'<b>ora</b> è facoltativa e scatta a passi di mezz'ora (:00/:30): se la metti, l'avviso arriva a quell'ora <b>e</b> alle 8:00. Il <b>preavviso</b> è quanti giorni prima inizia l'avviso del mattino.</p>`;
+      <p class="form-hint">L'<b>ora</b> è facoltativa (lasciala su <b>—</b> per nessun avviso a orario): se la scegli, l'avviso arriva a quell'ora <b>e</b> alle 8:00. Il <b>preavviso</b> è quanti giorni prima inizia l'avviso del mattino.</p>`;
     this.openSheet(edit ? "Modifica scadenza" : "Nuova scadenza", html, (d) => {
       const campi = {
         titolo: d.titolo.trim(),
@@ -441,7 +450,7 @@ export class UI {
         categoria: d.categoria,
         ricorrenza: d.ricorrenza || null,
         priorita: d.priorita,
-        orario: snap30(d.orario),
+        orario: d.ora_h ? `${d.ora_h}:${d.minuti || "00"}` : null,
         preavviso: d.preavviso,
       };
       if (!campi.titolo) return;

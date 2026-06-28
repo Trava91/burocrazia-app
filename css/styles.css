@@ -295,6 +295,28 @@ textarea { resize: vertical; min-height: 84px; }
 .sheet-form .row-2 > * { flex: 1; }
 .form-hint { color: var(--muted); font-size: .82rem; line-height: 1.4; margin: 10px 2px 0; }
 
+/* Ora avviso: select ore + toggle :00/:30 */
+.field { margin: 12px 0; }
+.field-cap { display: block; font-size: .9rem; color: var(--muted); }
+.ora-pick { display: flex; gap: 8px; margin-top: 6px; }
+.ora-pick select { flex: 1 1 0; min-width: 0; margin-top: 0; }
+.seg { display: flex; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  cursor: pointer;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 1rem;
+  user-select: none;
+  border-left: 1px solid var(--border);
+}
+.seg label:first-of-type { border-left: 0; }
+.seg input:checked + label { background: var(--primary); color: var(--primary-ink); }
+
 /* ============ Toast ============ */
 .toast {
   position: fixed;
