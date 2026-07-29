@@ -119,12 +119,31 @@ function registerSW() {
   });
 }
 
+// --- bootstrap da link (?setup=TOKEN) ---------------------------------------
+// Evita di dover copiare/incollare il token a mano: aprendo un link con
+// ?setup=<token> l'app lo verifica e lo salva da sola. Il token va tolto
+// dall'URL SUBITO (prima di qualunque await) per non lasciarlo nella barra
+// indirizzi/cronologia del browser più del necessario.
+function bootstrapFromUrl() {
+  const params = new URLSearchParams(location.search);
+  const token = params.get("setup");
+  if (!token) return false;
+  history.replaceState(null, "", location.pathname);
+  fillOnboarding();
+  show("onboarding");
+  $("#onb-token").value = token;
+  $("#onboarding-form").requestSubmit();
+  return true;
+}
+
 // --- avvio -----------------------------------------------------------------
 function main() {
   $("#onboarding-form").addEventListener("submit", onOnboardingSubmit);
   wireSettings();
   ui.init();
   registerSW();
+
+  if (bootstrapFromUrl()) return;
 
   if (store.hasToken()) {
     bootApp();
