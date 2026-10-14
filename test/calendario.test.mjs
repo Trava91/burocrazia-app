@@ -71,6 +71,7 @@ eq("Pasqua 2030", c.pasqua(2030), "2030-04-21");
 eq("Pasquetta 2027", c.nomeFestivita("2027-03-29"), "Pasquetta");
 eq("Ognissanti", c.nomeFestivita("2026-11-01"), "Ognissanti");
 eq("giorno normale", c.nomeFestivita("2026-10-14"), null);
+eq("San Francesco dal 2026 (legge 151/2025)", [c.nomeFestivita("2026-10-04"), c.nomeFestivita("2025-10-04")], ["San Francesco", null]);
 
 // --- conflitti (calco di turni.conflitto) ---
 eq("visita 16:45 di Pome = conflitto", c.conflitto(turni, { data: "2026-10-14", ora: "16:45" }), "P");
@@ -122,8 +123,10 @@ eq("settembre: notte/domenica/turno/buoni", [busta(set)["43VI Ore di notte"], bu
   busta(set)["44E Giorni a turno"], busta(set)["412 Buoni pasto"]], [18, 24, 20, 20]);
 eq("settembre: monte ore", set.monteOre, { monte: 176, coperte: 160, diff: -16 });
 const ott = c.riepilogoMese(turni, "nicolo", 2026, 10);
-eq("ottobre: notte/domenica/turno", [busta(ott)["43VI Ore di notte"], busta(ott)["51T Ore di domenica"], busta(ott)["44E Giorni a turno"]], [22, 16, 21]);
-eq("ottobre: monte ore", ott.monteOre, { monte: 176, coperte: 168, diff: -8 });
+eq("ottobre: notte/domenica/turno", [busta(ott)["43VI Ore di notte"], busta(ott)["51T Ore di domenica"], busta(ott)["44E Giorni a turno"]], [20, 16, 21]);
+eq("ottobre: 4/10 Pome di San Francesco = festa lavorata", busta(ott)["S50I/S60I Feste lavorate"], 8);
+// il 4/10 di San Francesco lavorato è straordinario: non copre il monte (come ricostruisci_turni.py e INAZ)
+eq("ottobre: monte ore", ott.monteOre, { monte: 176, coperte: 160, diff: -16 });
 const nov = c.riepilogoMese(turni, "nicolo", 2026, 11);
 eq("novembre: 1/11 Pome di festa → FL, niente notte", [busta(nov)["43VI Ore di notte"], busta(nov)["S50I/S60I Feste lavorate"], busta(nov)["51T Ore di domenica"]], [18, 8, 32]);
 eq("novembre: monte ore", nov.monteOre, { monte: 168, coperte: 144, diff: -24 });

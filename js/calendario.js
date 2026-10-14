@@ -117,6 +117,8 @@ const _festeCache = new Map();
 export function festivita(anno) {
   if (_festeCache.has(anno)) return _festeCache.get(anno);
   const out = new Map(FESTE_FISSE.map(([m, d, n]) => [isoOf(anno, m, d), n]));
+  // San Francesco d'Assisi: festa nazionale dal 2026 (legge 151/2025)
+  if (anno >= 2026) out.set(isoOf(anno, 10, 4), "San Francesco");
   const p = pasqua(anno);
   out.set(p, "Pasqua");
   out.set(addDays(p, 1), "Pasquetta");
