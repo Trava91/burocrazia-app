@@ -372,30 +372,30 @@ textarea { resize: vertical; min-height: 84px; }
   :root { --cal-outline: #f2ece2; --cal-gap: #241f1a; }
 }
 
-.cal-panel { padding: 6px 4px 96px; }
-.cal-bar { display: flex; align-items: center; gap: 8px; padding: 6px 4px 8px; }
+.cal-panel { padding: 4px 0 96px; }
+.cal-bar { display: flex; align-items: center; gap: 8px; padding: 2px 6px 6px; }
 .cal-persona {
   flex: 1; display: flex; align-items: center; gap: 8px; margin: 0;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
   padding: 0 10px; color: var(--text); font-size: 1rem;
 }
-.cal-persona select { margin: 0; border: 0; padding: 10px 0; background: transparent; font-weight: 700; }
+.cal-persona select { margin: 0; border: 0; padding: 8px 0; background: transparent; font-weight: 700; }
 .cal-btn {
-  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 10px; cursor: pointer;
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 10px; cursor: pointer;
   border: 1px solid var(--border); background: var(--surface); font-size: 1.2rem;
 }
 .cal-btn.on { background: var(--primary); border-color: var(--primary); }
 
-.cal-subtabs { display: flex; border-bottom: 1px solid var(--border); margin: 0 2px 6px; }
+.cal-subtabs { display: flex; border-bottom: 1px solid var(--border); margin: 0 6px 2px; }
 .cal-subtabs button {
   flex: 1; background: transparent; border: 0; cursor: pointer;
-  padding: 10px 0 8px; font-weight: 700; font-size: .95rem; letter-spacing: .03em;
+  padding: 8px 0 6px; font-weight: 700; font-size: .95rem; letter-spacing: .03em;
   color: var(--muted); border-bottom: 3px solid transparent;
 }
 .cal-subtabs button.active { color: var(--text); border-bottom-color: var(--primary); }
 
-.cal-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px 6px; }
-.cal-head h2 { font-size: 1.45rem; font-weight: 800; letter-spacing: .01em; color: var(--text); cursor: pointer; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 2px; }
+.cal-head h2 { font-size: 1.35rem; font-weight: 800; letter-spacing: .01em; color: var(--text); cursor: pointer; }
 .cal-arrow {
   background: transparent; border: 0; cursor: pointer; color: var(--text);
   font-size: 2.2rem; line-height: 1; padding: 0 14px; font-weight: 300;
@@ -405,7 +405,7 @@ textarea { resize: vertical; min-height: 84px; }
 
 .cal-grid {
   display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-auto-rows: max(66px, calc((100dvh - 330px) / 6));
+  grid-auto-rows: max(84px, calc((100dvh - 262px) / 6));
   gap: 2px; background: var(--cal-gap); touch-action: pan-y;
 }
 .cc {
@@ -417,23 +417,23 @@ textarea { resize: vertical; min-height: 84px; }
 .cc-band-v { flex: 0 0 34%; display: flex; border-top: 1px dashed rgba(0, 0, 0, .25); }
 .cc-band-v > span { flex: 1; display: flex; align-items: center; justify-content: center; }
 .cc-bname {
-  font-size: .82rem; line-height: 1.1; text-align: center; padding: 0 2px;
+  font-size: .9rem; line-height: 1.1; text-align: center; padding: 0 2px;
   overflow-wrap: anywhere; hyphens: auto;
 }
-.insieme .cc-bname { font-size: .72rem; }
+.insieme .cc-bname { font-size: .78rem; }
 .cc-num {
   position: absolute; top: 2px; right: 4px; z-index: 2;
-  font-size: .95rem; font-weight: 600; line-height: 1.35; min-width: 1.35em; text-align: center;
+  font-size: 1.05rem; font-weight: 600; line-height: 1.35; min-width: 1.35em; text-align: center;
 }
 .cc.fest .cc-num { color: var(--cal-red); }
 .cc.today .cc-num {
   color: var(--cal-red); font-weight: 800; background: #ffe3e3; border-radius: 50%;
   box-shadow: 0 0 0 2px #ffe3e3;
 }
-.cc-ico { position: absolute; top: 2px; left: 3px; z-index: 2; font-size: .72rem; line-height: 1.4; letter-spacing: -1px; }
+.cc-ico { position: absolute; top: 3px; left: 3px; z-index: 2; font-size: .8rem; line-height: 1.4; letter-spacing: -1px; }
 .cc-txt {
-  position: absolute; left: 2px; right: 2px; top: 22px; bottom: 2px; z-index: 2;
-  font-size: .76rem; line-height: 1.15; text-align: center; overflow: hidden;
+  position: absolute; left: 2px; right: 2px; top: 25px; bottom: 2px; z-index: 2;
+  font-size: .82rem; line-height: 1.15; text-align: center; overflow: hidden;
   overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
 }
 .cc.out { opacity: .38; }
@@ -448,13 +448,13 @@ textarea { resize: vertical; min-height: 84px; }
 .cc.bl::after { border-left-width: 3px; }
 .cc.br::after { border-right-width: 3px; }
 
-.cal-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 12px 4px 4px; font-size: .78rem; color: var(--text); }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 12px 8px 4px; font-size: .78rem; color: var(--text); }
 .cal-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .cal-legend i, .dot { display: inline-block; width: 13px; height: 13px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, .15); }
 .dot { margin-right: 8px; vertical-align: -2px; }
 
 /* vista anno */
-.year-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 8px; padding: 4px 2px; }
+.year-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 8px; padding: 4px 6px; }
 .ym { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px 5px; cursor: pointer; color: var(--text); font: inherit; }
 .ym.now { border: 2px solid var(--primary); }
 .ym-name { display: block; font-size: .72rem; font-weight: 800; margin-bottom: 4px; letter-spacing: .02em; }
@@ -465,8 +465,8 @@ textarea { resize: vertical; min-height: 84px; }
 .ym-grid i.ym-today { outline: 1.5px solid var(--cal-red); }
 
 /* riepilogo */
-.riep-chi { margin: 0 4px 8px; font-weight: 700; color: var(--muted); }
-.riep-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px 14px; margin: 0 2px 12px; }
+.riep-chi { margin: 0 8px 8px; font-weight: 700; color: var(--muted); }
+.riep-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px 14px; margin: 0 6px 12px; }
 .riep-card h3 { margin: 0 0 8px; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 .riep { width: 100%; border-collapse: collapse; font-size: .92rem; }
 .riep td, .riep th { padding: 6px 2px; border-bottom: 1px solid var(--border); text-align: left; }
@@ -482,7 +482,7 @@ textarea { resize: vertical; min-height: 84px; }
 .riep-imp li b { display: inline-block; min-width: 1.8em; }
 
 /* pennello */
-.cal-brush { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 12px; margin: 0 2px 8px; }
+.cal-brush { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 12px; margin: 0 6px 8px; }
 .brush-top { display: flex; justify-content: space-between; align-items: center; }
 .brush-per { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--text); }
 .brush-hint { font-size: .8rem; color: var(--muted); margin: 6px 0 0; }
