@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Anteprima calendario</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<!--
+  Anteprima del calendario con dati LOCALI, senza token e senza GitHub.
+  Monta il codice vero dell'app (Store, UI, CalendarUI) con un finto client API
+  in memoria: le "scritture" restano nella pagina, niente tocca il repo.
+
+  Uso (dalla cartella 03-burocrazia/):
+    python -m http.server 8765
+    → http://localhost:8765/app/test/preview.html
+  Parametri: ?vista=mese|anno|riepilogo  &persona=nicolo|valentina|insieme
+             &giorno=YYYY-MM-DD (apre il dettaglio)  &mese=YYYY-MM  &tab=scadenze…
+  Dati: ../../scadenzario/{scadenzario,memoria,lista-spesa,turni,agenda}.json
+  più le note di Shifter dello screenshot se agenda.json è ancora vuota.
+  Fuori dallo shell del service worker: non finisce nell'app installata.
+-->
+<div id="mount"></div>
+<script>
+  // ?telefono=412x915 → la stessa anteprima dentro un riquadro largo come un
+  // telefono (Chrome headless non scende sotto ~500 px di finestra).
+  const _t = new URLSearchParams(location.search).get("telefono");
+  if (_t && window === window.top) {
+    const [w, h] = _t.split("x");
+    const u = new URL(location.href); u.searchParams.delete("telefono");
+    document.write(`<style>body{margin:0;background:#888}</style><iframe src="${u}" style="width:${w}px;height:${h}px;border:0;display:block;background:#fff"></iframe>`);
+    document.close();
+    throw new Error("riquadro telefono");
+  }
+</script>
+<script type="module">
+  if (new URLSearchParams(location.search).get("telefono") && window === window.top) throw new Error("skip");
+  import { Store } from "../js/store.js";
+  import { UI } from "../js/ui.js";
+  import { CalendarUI } from "../js/cal-ui.js";
+
+  // 1. markup dell'app: preso da index.html, così l'anteprima non diverge
+  const html = await (await fetch("../index.html")).text();
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("script").forEach((s) => s.remove());
+  document.getElementById("mount").replaceWith(...doc.body.children);
+
+  // 2. dati locali + finto client GitHub in memoria
+  const base = "../../scadenzario/";
+  const files = {};
+  for (const f of ["scadenzario.json", "memoria.json", "lista-spesa.json", "turni.json", "agenda.json"]) {
+    const r = await fetch(base + f);
+    files[f] = r.ok ? await r.json() : null;
+  }
+  if (files["agenda.json"] && !files["agenda.json"].appuntamenti.length) {
+    files["agenda.json"].appuntamenti = [
+      { id: "visita-medica", titolo: "Visita medica", data: "2026-10-08", ora: "16:45", avviso_min: 60 },
+      { id: "pisa", titolo: "Pisa", data: "2026-10-18", ora: null, avviso_min: null },
+      { id: "gomme", titolo: "Best Tire Ferrara - gomme", data: "2026-10-15", ora: "11:00", avviso_min: 120, luogo: "Ferrara" },
+      { id: "dentista", titolo: "Dentista", data: "2026-10-22", ora: "17:00", avviso_min: 60 },
+    ];
+  }
+  let n = 0;
+  const fakeApi = {
+    async getFile(path) {
+      if (!files[path]) { const e = new Error("404"); e.kind = "notfound"; throw e; }
+      return { data: JSON.parse(JSON.stringify(files[path])), sha: "s" + n };
+    },
+    async putFile(path, data) { files[path] = data; n++; console.log("PUT", path); return "s" + n; },
+  };
+
+  const store = new Store();
+  store.api = fakeApi;
+  store.token = "anteprima";
+  const ui = new UI(store);
+  const calUI = new CalendarUI(store, ui);
+  ui.cal = calUI;
+  store.onChange(() => ui.renderAll());
+
+  const q = new URLSearchParams(location.search);
+  if (q.get("persona")) calUI.persona = q.get("persona");
+  if (q.get("vista")) calUI.view = q.get("vista");
+  if (q.get("mese")) { calUI.y = +q.get("mese").slice(0, 4); calUI.m = +q.get("mese").slice(5, 7); }
+  if (q.get("tab")) ui.tab = q.get("tab");
+
+  calUI.init();
+  ui.init();
+  document.getElementById("app").hidden = false;
+  await store.load();
+  if (q.get("giorno")) calUI.apriDettaglio(q.get("giorno"));
+  if (q.get("pennello")) { calUI.startBrush(); calUI.brush.periodo = true; calUI.render(); }
+  if (q.get("form")) calUI.apriFormAppuntamento(null, q.get("form"));
+  window.__store = store; window.__cal = calUI;
+
+  // ?prova=1 → collaudo dello store sul finto GitHub (fila, conflitto, rollback).
+  // Risultati in <pre id="prova"> e nel titolo; leggibili con chrome --dump-dom.
+  if (q.get("prova")) {
+    const out = [];
+    const ok = (nome, cond) => out.push(`${cond ? "OK" : "KO"} ${nome}`);
+    const F = (f) => files[f];
+    const { ApiError } = await import("../js/api.js");
+    const realPut = fakeApi.putFile;
+
+    await store.setTurno("nicolo", "2026-10-19", [{ tipo: "G" }]);
+    ok("eccezione 19/10 = G salvata", F("turni.json").persone.nicolo.eccezioni["2026-10-19"][0].tipo === "G");
+
+    // due tocchi senza aspettare: la fila li salva entrambi
+    const p1 = store.setTurno("nicolo", "2026-10-20", [{ tipo: "F" }]);
+    const p2 = store.setTurno("nicolo", "2026-10-21", [{ tipo: "M" }, { tipo: "N" }]);
+    ok("vista aggiornata subito (optimistic)", store.turni.persone.nicolo.eccezioni["2026-10-21"]?.length === 2);
+    await Promise.all([p1, p2]);
+    const ecc = F("turni.json").persone.nicolo.eccezioni;
+    ok("fila: entrambi i giorni salvati", ecc["2026-10-20"]?.[0].tipo === "F" && ecc["2026-10-21"]?.length === 2);
+
+    await store.setTurno("nicolo", "2026-10-20", null);
+    ok("torna al ciclo toglie l'eccezione", !("2026-10-20" in F("turni.json").persone.nicolo.eccezioni));
+
+    await store.aggiungiAppuntamento({ titolo: "Prova visita", data: "2026-10-23", ora: "16:45" });
+    const a = F("agenda.json").appuntamenti.find((x) => x.titolo === "Prova visita");
+    ok("nuovo appuntamento: id/avviso/fonte", a?.id === "prova-visita" && a.avviso_min === 60 && a.fonte === "app");
+
+    await store.modificaAppuntamento("prova-visita", { titolo: "Prova visita", data: "2026-10-23", ora: null, avviso_min: 60 });
+    const a2 = F("agenda.json").appuntamenti.find((x) => x.id === "prova-visita");
+    ok("senza ora → niente avviso", a2.ora === null && a2.avviso_min === null);
+
+    // conflitto: il cron scrive agenda.json in mezzo → retry con merge per id
+    let colpo = true;
+    fakeApi.putFile = async (path, data, sha, msg) => {
+      if (colpo && path === "agenda.json") {
+        colpo = false;
+        files["agenda.json"].appuntamenti.push({ id: "dal-cron", titolo: "Dal cron", data: "2026-10-24", ora: null });
+        throw new ApiError("conflitto", { status: 409, conflict: true, kind: "conflict" });
+      }
+      return realPut(path, data, sha, msg);
+    };
+    await store.aggiungiAppuntamento({ titolo: "Dopo conflitto", data: "2026-10-25" });
+    const ids = F("agenda.json").appuntamenti.map((x) => x.id);
+    ok("conflitto: tiene la riga del cron e la mia", ids.includes("dal-cron") && ids.includes("dopo-conflitto"));
+    ok("vista = server dopo il merge", store.appuntamenti().some((x) => x.id === "dal-cron"));
+
+    // errore definitivo → la vista torna allo stato confermato
+    fakeApi.putFile = async () => { throw new ApiError("Rete assente.", { kind: "network" }); };
+    let errore = null;
+    try { await store.eliminaAppuntamento("dal-cron"); } catch (e) { errore = e; }
+    ok("errore: promise rifiutata", Boolean(errore));
+    ok("errore: rollback della vista", store.appuntamenti().some((x) => x.id === "dal-cron"));
+    fakeApi.putFile = realPut;
+
+    // pennello: periodo di ferie (salta i riposi del ciclo)
+    const per = (await import("../js/calendario.js")).modifichePeriodo(store.turni, "nicolo", "2026-11-02", "2026-11-08", "F");
+    await store.applicaTurni("nicolo", per);
+    const e2 = F("turni.json").persone.nicolo.eccezioni;
+    ok("periodo ferie: lavorativi sì, riposi no", e2["2026-11-04"]?.[0].tipo === "F" && !e2["2026-11-02"] && !e2["2026-11-07"]);
+
+    await store.modificaCiclo("valentina", { ancora: "2026-10-12", sequenza: store.turni.persone.valentina.ciclo.sequenza,
+      orari: { V0: { inizio: "00:00", fine: "06:00" } } });
+    ok("modifica ciclo salvata", F("turni.json").persone.valentina.ciclo.ancora === "2026-10-12");
+
+    // le operazioni di prima (scadenze) funzionano ancora con la nuova fila
+    const prima = F("scadenzario.json").scadenze.length;
+    await store.aggiungiScadenza({ titolo: "Prova scadenza", scadenza: "2026-10-30", categoria: "personale", priorita: "media", preavviso: 3 });
+    ok("scadenze: aggiunta", F("scadenzario.json").scadenze.length === prima + 1);
+    await store.eliminaScadenza("prova-scadenza");
+    ok("scadenze: eliminata", F("scadenzario.json").scadenze.length === prima);
+
+    const ko = out.filter((r) => r.startsWith("KO")).length;
+    const pre = document.createElement("pre");
+    pre.id = "prova"; pre.textContent = out.join("\n");
+    document.body.prepend(pre);
+    document.title = `prova ${out.length - ko}/${out.length}`;
+  } else if (q.get("immagine")) {
+    // l'immagine che verrebbe condivisa (Step 7), al posto della pagina
+    const img = new Image();
+    img.src = calUI._disegnaMese().toDataURL("image/png");
+    img.style.width = "100%";
+    document.body.innerHTML = "";
+    document.body.appendChild(img);
+    document.title = "immagine";
+  } else {
+    document.title = "pronto";
+  }
+</script>
+</body>
+</html>

@@ -1,11 +1,11 @@
 // sw.js — service worker: cache dell'app shell (lettura offline dell'interfaccia).
 //
-// I DATI (le 3 liste) NON passano da qui: arrivano da api.github.com
+// I DATI (le 3 liste + turni e agenda) NON passano da qui: arrivano da api.github.com
 // (cross-origin, autenticati) e lo store li mette in cache nel localStorage
 // (snapshot) per la lettura offline. Qui si cache-a solo lo "shell" statico.
 // Le scritture offline non sono supportate in v1.
 
-const CACHE = "buro-v8"; // bump a ogni deploy per invalidare lo shell
+const CACHE = "buro-v9"; // bump a ogni deploy per invalidare lo shell
 
 const SHELL = [
   "./",
@@ -17,6 +17,8 @@ const SHELL = [
   "js/store.js",
   "js/api.js",
   "js/model.js",
+  "js/calendario.js",
+  "js/cal-ui.js",
   "icons/icon.svg",
 ];
 

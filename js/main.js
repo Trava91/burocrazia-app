@@ -3,14 +3,17 @@
 import { Store } from "./store.js";
 import { GitHubApi } from "./api.js";
 import { UI, showToast } from "./ui.js";
+import { CalendarUI } from "./cal-ui.js";
 
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.1.0";
 const PAT_URL = "https://github.com/settings/personal-access-tokens/new";
 
 const $ = (s) => document.querySelector(s);
 
 const store = new Store();
 const ui = new UI(store);
+const calUI = new CalendarUI(store, ui);
+ui.cal = calUI;
 store.onChange(() => ui.renderAll());
 
 // --- schermate -------------------------------------------------------------
@@ -86,6 +89,7 @@ function openSettings() {
     ? new Date(store.lastSync).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" })
     : "—";
   $("#set-lastsync").textContent = store.offline ? `${ls} (offline)` : ls;
+  calUI.renderImpostazioni($("#set-turni"));
   show("settings");
 }
 
@@ -140,6 +144,7 @@ function bootstrapFromUrl() {
 function main() {
   $("#onboarding-form").addEventListener("submit", onOnboardingSubmit);
   wireSettings();
+  calUI.init();
   ui.init();
   registerSW();
 

@@ -48,9 +48,11 @@ function esc(s) {
 export class UI {
   constructor(store) {
     this.store = store;
-    this.tab = "scadenze";
+    this.tab = "calendario"; // l'app si apre sul calendario
     this.includeTutte = false;
     this.openRow = null; // riga con lo swipe aperto (per chiuderla)
+    this.cal = null;     // CalendarUI, collegata da main.js
+    this.sheetKind = null; // "form" | "giorno" | null (sheet chiuso)
   }
 
   init() {
@@ -66,7 +68,8 @@ export class UI {
 
     // FAB → nuovo (dipende dal tab)
     $("#fab").addEventListener("click", () => {
-      if (this.tab === "scadenze") this.openScadenzaForm();
+      if (this.tab === "calendario") this.cal?.apriFormAppuntamento(null, this.cal.selected);
+      else if (this.tab === "scadenze") this.openScadenzaForm();
       else if (this.tab === "appunti") this.openAppuntoForm();
       else if (this.tab === "spesa") this.openSpesaForm();
     });
@@ -78,6 +81,7 @@ export class UI {
     // Tab Invia: deep-link bot
     this.refreshInviaLinks();
 
+    this.switchTab(this.tab);
     this.renderAll();
   }
 
@@ -95,11 +99,11 @@ export class UI {
     this.tab = tab;
     document.querySelectorAll(".tab").forEach((b) =>
       b.classList.toggle("active", b.dataset.tab === tab));
-    for (const name of ["scadenze", "appunti", "spesa", "invia"]) {
+    for (const name of ["calendario", "scadenze", "appunti", "spesa", "invia"]) {
       $(`#panel-${name}`).hidden = name !== tab;
     }
     $("#fab").hidden = tab === "invia";
-    const titoli = { scadenze: "Scadenze", appunti: "Appunti", spesa: "Spesa", invia: "Invia" };
+    const titoli = { calendario: "Calendario", scadenze: "Scadenze", appunti: "Appunti", spesa: "Spesa", invia: "Invia" };
     $("#header-title").textContent = titoli[tab] || "Burocrazia";
     this.closeOpenRow();
   }
@@ -109,6 +113,7 @@ export class UI {
     this.renderScadenze();
     this.renderAppunti();
     this.renderSpesa();
+    this.cal?.render();
     this.renderSync();
   }
 
@@ -378,12 +383,32 @@ export class UI {
       this.closeSheet();
       onSubmit(data);
     };
+    this.sheetKind = "form";
     $("#sheet-backdrop").hidden = false;
     $("#sheet").hidden = false;
     setTimeout(() => form.querySelector("input,textarea,select")?.focus(), 60);
   }
 
+  // Sheet senza "Salva" (dettaglio del giorno del calendario): ritorna il
+  // contenitore per collegare i pulsanti. keep=true: aggiornamento sul posto
+  // (stessa posizione di scorrimento, niente animazione).
+  openCustomSheet(title, html, { keep = false } = {}) {
+    const sheet = $("#sheet");
+    const scroll = keep ? sheet.scrollTop : 0;
+    $("#sheet-title").textContent = title;
+    const form = $("#sheet-form");
+    form.innerHTML = html;
+    form.onsubmit = (e) => e.preventDefault();
+    this.sheetKind = "giorno";
+    $("#sheet-backdrop").hidden = false;
+    sheet.hidden = false;
+    sheet.classList.toggle("no-anim", keep);
+    sheet.scrollTop = scroll;
+    return form;
+  }
+
   closeSheet() {
+    this.sheetKind = null;
     $("#sheet").hidden = true;
     $("#sheet-backdrop").hidden = true;
   }
@@ -412,7 +437,8 @@ export class UI {
     return opts;
   }
 
-  openScadenzaForm(item = null) {
+  // preset: valori iniziali per una scadenza nuova (es. { scadenza: "2026-10-20" } dal calendario)
+  openScadenzaForm(item = null, preset = {}) {
     const edit = Boolean(item);
     const orarioVal = item?.orario_notifica || "";
     const oraSel = orarioVal.split(":")[0] || "";
@@ -420,7 +446,7 @@ export class UI {
     const html = `
       <label>Titolo<input name="titolo" type="text" required value="${esc(item?.titolo || "")}"></label>
       <div class="row-2">
-        <label>Scadenza<input name="scadenza" type="date" value="${esc(item?.scadenza || "")}"></label>
+        <label>Scadenza<input name="scadenza" type="date" value="${esc(item?.scadenza || preset.scadenza || "")}"></label>
         <div class="field">
           <span class="field-cap">Ora avviso</span>
           <div class="ora-pick">

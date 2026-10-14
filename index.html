@@ -67,8 +67,27 @@
       </div>
     </header>
 
+    <!-- Pannello Calendario (stile Shifter: turni, appuntamenti, scadenze) -->
+    <section id="panel-calendario" class="panel cal-panel" data-tab="calendario">
+      <div class="cal-bar">
+        <label class="cal-persona">
+          <span aria-hidden="true">👤</span>
+          <select id="cal-persona" aria-label="Di chi è il calendario"></select>
+        </label>
+        <button id="cal-pennello" class="cal-btn" type="button" aria-label="Pennello dei turni" title="Pennello">✏️</button>
+        <button id="cal-share" class="cal-btn" type="button" aria-label="Condividi il mese" title="Condividi il mese">📤</button>
+      </div>
+      <nav class="cal-subtabs" role="tablist">
+        <button type="button" data-view="mese" class="active">MESE</button>
+        <button type="button" data-view="anno">ANNO</button>
+        <button type="button" data-view="riepilogo">RIEPILOGO</button>
+      </nav>
+      <div id="cal-brush" class="cal-brush" hidden></div>
+      <div id="cal-body" class="cal-body"></div>
+    </section>
+
     <!-- Pannello Scadenze -->
-    <section id="panel-scadenze" class="panel" data-tab="scadenze">
+    <section id="panel-scadenze" class="panel" data-tab="scadenze" hidden>
       <div class="section-head">
         <h2>Scadenze</h2>
         <label class="toggle-all">
@@ -105,7 +124,8 @@
 
     <!-- Tab bar -->
     <nav class="tabbar" role="tablist">
-      <button class="tab active" data-tab="scadenze" role="tab"><span>📌</span><small>Scadenze</small></button>
+      <button class="tab active" data-tab="calendario" role="tab"><span>📅</span><small>Calendario</small></button>
+      <button class="tab" data-tab="scadenze" role="tab"><span>📌</span><small>Scadenze</small></button>
       <button class="tab" data-tab="appunti" role="tab"><span>📝</span><small>Appunti</small></button>
       <button class="tab" data-tab="spesa" role="tab"><span>🛒</span><small>Spesa</small></button>
       <button class="tab" data-tab="invia" role="tab"><span>✉️</span><small>Invia</small></button>
@@ -128,6 +148,10 @@
         <input id="set-bot" type="text" placeholder="es. burocrazia_nico_bot">
       </label>
       <button id="set-save-bot" class="btn-secondary">Salva bot</button>
+
+      <hr>
+      <h2 class="set-title">Turni</h2>
+      <div id="set-turni"></div>
 
       <hr>
       <button id="set-change-token" class="btn-secondary">Cambia token</button>

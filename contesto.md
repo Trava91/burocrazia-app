@@ -3,10 +3,32 @@
 ## Cos'è
 
 `03-burocrazia/app/` è una **PWA** (web app installabile sul telefono) che gestisce le
-tre liste burocrazia — **scadenze, appunti, spesa** — parlando **direttamente** con
-l'API GitHub del repo `Trava91/scadenzario`, la stessa fonte di verità usata da Telegram
-e dalla skill `/burocrazia`. Niente backend, niente build: solo HTML/CSS/JS statici
-serviti da **GitHub Pages**, più chiamate all'API GitHub dal browser.
+tre liste burocrazia — **scadenze, appunti, spesa** — e il **calendario** (turni +
+appuntamenti), parlando **direttamente** con l'API GitHub del repo `Trava91/scadenzario`,
+la stessa fonte di verità usata da Telegram e dalla skill `/burocrazia`. Niente backend,
+niente build: solo HTML/CSS/JS statici serviti da **GitHub Pages**, più chiamate all'API
+GitHub dal browser.
+
+## Calendario (dal 14/10/2026)
+
+Prima scheda e schermata d'apertura. Copia lo stile di **Shifter** solo qui (il resto
+dell'app resta salvia su crema): casella colorata per turno, testo del primo impegno,
+oggi cerchiato in rosso, bordo spesso sul mese, sotto-schede MESE · ANNO · RIEPILOGO.
+- **Dati:** `turni.json` (ciclo + eccezioni per persona) e `agenda.json` (appuntamenti),
+  oltre alle scadenze. Logica pura in `js/calendario.js` (porting di `turni.py`/`agenda.py`),
+  DOM e gesti in `js/cal-ui.js`.
+- **Selettore persona:** Nicolò / Valentina / Insieme. Appuntamenti e scadenze sono di
+  Nicolò: nella vista di Valentina si vedono solo i suoi turni.
+- **Modifica:** tocco sul giorno = dettaglio (chip turno, secondo turno, ore per il giorno a
+  metà, torna al ciclo, appuntamenti, scadenze). Matita = **pennello** (con *Periodo*: ferie &
+  co. saltano i riposi del ciclo); si salva in un solo commit. Cicli e orari nelle Impostazioni.
+- **Riepilogo:** conteggi per tipo, ore contro monte ore (lun-ven × 8), **voci da busta paga**
+  con le regole della scheda colleghi (`01-lavoro/buste-paga/scheda-colleghi/`), impegni del mese.
+- **Anteprima senza token:** da `03-burocrazia/` lancia `python -m http.server 8765` e apri
+  `http://localhost:8765/app/test/preview.html` (dati locali, finto GitHub in memoria;
+  `?prova=1` collauda lo store, `?immagine=1` mostra l'immagine da condividere).
+- **Futuro:** Valentina avrà una versione ridotta (calendari + spesa) → i dati condivisi
+  andranno in un repo a parte (un PAT apre tutto il repo, non i singoli file).
 
 È un **repo Git separato e pubblico** (`Trava91/burocrazia-app`): il sorgente non
 contiene segreti (il PAT lo inserisce l'utente a runtime, resta in `localStorage`).
@@ -29,15 +51,20 @@ Python (`scadenzario.py`, `memoria.py`, `lista_spesa.py`, `cloud_inbox.py`): ava
 delle ricorrenze, slug degli id, formato giorni, schema completo delle voci. Il parser di
 linguaggio naturale, la trascrizione e la visione **restano** su Telegram/PC.
 
-> **Se cambia un campo dei 3 JSON, va aggiornato su ENTRAMBI i lati**: i motori Python
-> *e* `js/model.js`. Lo schema condiviso è ciò che tiene insieme i due front-end.
+> **Se cambia un campo dei JSON, va aggiornato su ENTRAMBI i lati**: i motori Python
+> *e* `js/model.js` (scadenze, appunti, spesa) o `js/calendario.js` (`turni.json`,
+> `agenda.json`). Lo schema condiviso è ciò che tiene insieme i due front-end.
+> `scadenzario/test_calendario.py` confronta Python e JS su turni, festività e conflitti.
 
 ## Conflitti di scrittura (app ↔ cron)
 
-App e cron orario toccano gli stessi 3 JSON. La Contents API richiede lo `sha` corrente:
+App e cron toccano gli stessi JSON. La Contents API richiede lo `sha` corrente:
 se è cambiato → HTTP 409. `js/store.js` fa **lock ottimistico**: ri-legge, **riapplica la
-modifica per `id`** (non per indice) e riprova (max 3). Per un utente singolo i conflitti
-sono rari. La skill `/burocrazia`, dal canto suo, fa **sempre `git pull`** prima di lavorare.
+modifica per `id`/data** (non per indice) e riprova (max 3). Le scritture sullo stesso
+file vanno **in fila** (due tocchi veloci non si pestano lo sha); quando la fila si
+svuota la vista torna all'ultimo stato confermato dal server (= rollback di ciò che è
+fallito). Per un utente singolo i conflitti sono rari. La skill `/burocrazia`, dal canto
+suo, fa **sempre `git pull`** prima di lavorare.
 
 ## Stato
 

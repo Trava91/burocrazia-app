@@ -1,11 +1,15 @@
-// store.js — stato in memoria delle 3 liste + coreografia letture/scritture.
+// store.js — stato in memoria dei 5 file (3 liste + turni + agenda) e
+// coreografia letture/scritture.
 //
 // Tutte le mutazioni passano da `mutate`: applicazione OPTIMISTIC (la UI cambia
-// subito), poi commit su GitHub; su conflitto col cron (sha stale) ri-legge,
-// riapplica la modifica PER ID e riprova; al fallimento definitivo fa rollback.
+// subito), poi commit su GitHub IN FILA per file (due tocchi veloci non si
+// pestano lo sha); su conflitto col cron (sha stale) ri-legge, riapplica la
+// modifica PER ID/DATA e riprova; quando la fila si svuota la vista torna
+// all'ultimo stato confermato dal server (= rollback di ciò che è fallito).
 
 import { GitHubApi, ApiError } from "./api.js";
 import * as model from "./model.js";
+import * as cal from "./calendario.js";
 
 const LS = {
   token: "buro.token",
@@ -18,19 +22,28 @@ const LS = {
 
 const DEFAULTS = { owner: "Trava91", repo: "scadenzario", bot: "cluadetrascrizione_bot" };
 
-// I tre file e la chiave dell'array dentro ciascun JSON.
+// I file e la chiave dei dati dentro ciascun JSON (per turni è un oggetto).
 const FILES = {
   scadenze: { path: "scadenzario.json", key: "scadenze" },
   appunti: { path: "memoria.json", key: "appunti" },
   spesa: { path: "lista-spesa.json", key: "voci" },
+  turni: { path: "turni.json", key: "persone" },
+  agenda: { path: "agenda.json", key: "appuntamenti" },
 };
+// File del calendario: se mancano (404) l'app parte lo stesso, senza calendario.
+const OPTIONAL = new Set(["turni", "agenda"]);
+const EMPTY = { agenda: { appuntamenti: [] } };
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
+const vuoto = () => Object.fromEntries(Object.keys(FILES).map((k) => [k, null]));
 
 export class Store {
   constructor() {
-    this.data = { scadenze: null, appunti: null, spesa: null };
-    this.sha = { scadenze: null, appunti: null, spesa: null };
+    this.data = vuoto();     // vista (comprende le modifiche non ancora confermate)
+    this.server = vuoto();   // ultimo stato confermato da GitHub
+    this.sha = vuoto();
+    this._pending = {};      // scritture in fila per file
+    this._chain = {};
     this.offline = false;
     this.lastSync = localStorage.getItem(LS.lastSync) || null;
     this._onChange = null;
@@ -63,7 +76,8 @@ export class Store {
     localStorage.removeItem(LS.snapshot);
     localStorage.removeItem(LS.lastSync);
     this._buildApi();
-    this.data = { scadenze: null, appunti: null, spesa: null };
+    this.data = vuoto();
+    this.server = vuoto();
   }
 
   onChange(cb) { this._onChange = cb; }
@@ -72,13 +86,17 @@ export class Store {
   // --- caricamento ---------------------------------------------------------
   async load() {
     try {
-      const [s, a, sp] = await Promise.all([
-        this.api.getFile(FILES.scadenze.path),
-        this.api.getFile(FILES.appunti.path),
-        this.api.getFile(FILES.spesa.path),
-      ]);
-      this.data = { scadenze: s.data, appunti: a.data, spesa: sp.data };
-      this.sha = { scadenze: s.sha, appunti: a.sha, spesa: sp.sha };
+      const names = Object.keys(FILES);
+      const res = await Promise.all(names.map((n) =>
+        this.api.getFile(FILES[n].path).catch((e) => {
+          if (OPTIONAL.has(n) && e instanceof ApiError && e.kind === "notfound") return { data: null, sha: null };
+          throw e;
+        })));
+      names.forEach((n, i) => {
+        this.data[n] = res[i].data;
+        this.server[n] = res[i].data;
+        this.sha[n] = res[i].sha;
+      });
       this.offline = false;
       this._markSync();
       this._saveSnapshot();
@@ -111,7 +129,8 @@ export class Store {
     if (!raw) return false;
     try {
       const snap = JSON.parse(raw);
-      this.data = snap.data;
+      this.data = { ...vuoto(), ...snap.data };  // snapshot vecchi: senza turni/agenda
+      this.server = { ...this.data };
       this.lastSync = snap.at || this.lastSync;
       return Boolean(this.data?.scadenze);
     } catch { return false; }
@@ -133,48 +152,61 @@ export class Store {
   }
   findScadenza(id) { return this.list("scadenze").find((x) => x.id === id); }
 
-  // --- motore di mutazione (optimistic + conflitto + rollback) -------------
-  async mutate(file, fn, commitMsg) {
+  // --- motore di mutazione (optimistic + fila + conflitto + rollback) ------
+  // `fn` riceve il valore della chiave (array o oggetto) e ritorna quello nuovo.
+  // Deve lavorare per id/data, non per indice: in caso di conflitto viene
+  // riapplicata sui dati freschi del server.
+  mutate(file, fn, commitMsg) {
     if (this.offline) {
-      throw new ApiError("Sei offline: riprova quando torni online.", { kind: "network" });
+      return Promise.reject(new ApiError("Sei offline: riprova quando torni online.", { kind: "network" }));
     }
     const { path, key } = FILES[file];
-    const before = this.data[file];          // per il rollback
-    const beforeSha = this.sha[file];
+    const base = () => clone(this.server[file] ?? EMPTY[file] ?? null);
+    if (!base()) return Promise.reject(new ApiError(`${path} non c'è nel repo.`, { kind: "notfound" }));
 
-    // optimistic: clona, applica la modifica, mostra subito
-    let working = clone(before);
-    working[key] = fn(working[key]);
-    this.data[file] = working;
+    // optimistic: applica sulla vista attuale e mostra subito
+    const view = clone(this.data[file] ?? base());
+    view[key] = fn(view[key]);
+    this.data[file] = view;
     this._emit();
+    this._pending[file] = (this._pending[file] || 0) + 1;
 
-    let sha = beforeSha;
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    const run = async () => {
       try {
-        const newSha = await this.api.putFile(path, working, sha, commitMsg);
-        this.sha[file] = newSha;
-        this._markSync();
-        this._saveSnapshot();
-        this._emit();
-        return true;
-      } catch (e) {
-        if (e instanceof ApiError && e.conflict && attempt < 3) {
-          // sha stale (cron ha scritto): ri-leggi, riapplica PER ID, riprova
-          const fresh = await this.api.getFile(path);
-          working = clone(fresh.data);
-          working[key] = fn(working[key]);
-          sha = fresh.sha;
-          this.data[file] = working;   // mostra il merge (modifica app + cron)
-          this._emit();
-          continue;
+        let sha = this.sha[file];
+        for (let attempt = 1; ; attempt++) {
+          const next = base();
+          next[key] = fn(next[key]);
+          try {
+            this.sha[file] = await this.api.putFile(path, next, sha, commitMsg);
+            this.server[file] = next;
+            this._markSync();
+            return true;
+          } catch (e) {
+            if (e instanceof ApiError && e.conflict && attempt < 3) {
+              // sha stale (il cron ha scritto): ri-leggi e riapplica per id/data
+              const fresh = await this.api.getFile(path);
+              this.server[file] = fresh.data;
+              this.sha[file] = sha = fresh.sha;
+              continue;
+            }
+            throw e;
+          }
         }
-        // fallimento definitivo → rollback
-        this.data[file] = before;
-        this.sha[file] = beforeSha;
-        this._emit();
-        throw e;
+      } finally {
+        this._pending[file] -= 1;
+        if (this._pending[file] === 0) {
+          // fila vuota: la vista torna allo stato confermato (merge col cron,
+          // e rollback automatico di ciò che non è andato a buon fine)
+          this.data[file] = this.server[file];
+          this._saveSnapshot();
+          this._emit();
+        }
       }
-    }
+    };
+    const p = (this._chain[file] || Promise.resolve()).then(run);
+    this._chain[file] = p.catch(() => {});
+    return p;
   }
 
   // --- operazioni scadenze -------------------------------------------------
@@ -261,6 +293,63 @@ export class Store {
     return this.mutate("spesa",
       (arr) => arr.filter((v) => v.id !== id),
       `app: elimina voce spesa ${id}`);
+  }
+
+  // --- calendario: viste ---------------------------------------------------
+  get turni() { return this.data.turni; }
+  appuntamenti() { return this.list("agenda"); }
+  findAppuntamento(id) { return this.appuntamenti().find((a) => a.id === id); }
+
+  // --- calendario: turni ---------------------------------------------------
+  // voci = [{tipo, ore?}] oppure null = torna al ciclo
+  setTurno(pid, iso, voci) {
+    const cosa = voci ? voci.map((v) => v.tipo + (v.ore ? ` ${v.ore}h` : "")).join("+") : "ciclo";
+    return this.mutate("turni", (persone) => cal.setTurno(persone, pid, iso, voci),
+      `app: turno ${pid} ${iso} ${cosa}`);
+  }
+
+  // blocco del pennello: { iso: voci | null }
+  applicaTurni(pid, modifiche) {
+    const n = Object.keys(modifiche).length;
+    return this.mutate("turni", (persone) => cal.applicaTurni(persone, pid, modifiche),
+      `app: turni ${pid} (${n} giorni)`);
+  }
+
+  modificaCiclo(pid, { sequenza, ancora, orari }) {
+    return this.mutate("turni", (persone) => {
+      const out = clone(persone);
+      const p = out[pid];
+      if (!p) return out;
+      if (sequenza) p.ciclo.sequenza = sequenza;
+      if (ancora) p.ciclo.ancora = ancora;
+      for (const [cod, o] of Object.entries(orari || {})) {
+        if (p.tipi[cod] && o.inizio && o.fine) { p.tipi[cod].inizio = o.inizio; p.tipi[cod].fine = o.fine; }
+      }
+      return out;
+    }, `app: ciclo turni ${pid}`);
+  }
+
+  // --- calendario: appuntamenti --------------------------------------------
+  aggiungiAppuntamento(campi) {
+    return this.mutate("agenda",
+      (arr) => [...(arr || []), cal.newAppuntamento(campi, arr || [])],
+      `app: nuovo appuntamento ${campi.titolo}`);
+  }
+
+  modificaAppuntamento(id, campi) {
+    return this.mutate("agenda", (arr) => (arr || []).map((a) => {
+      if (a.id !== id) return a;
+      const x = { ...a, ...campi, titolo: String(campi.titolo ?? a.titolo).trim() };
+      if (!x.ora) { x.ora = null; x.avviso_min = null; x.fine = null; }
+      // cambiano data/ora/avviso → l'avviso puntuale può ri-scattare
+      if (x.data !== a.data || x.ora !== a.ora || x.avviso_min !== a.avviso_min) x.notificato = null;
+      return x;
+    }), `app: modifica appuntamento ${id}`);
+  }
+
+  eliminaAppuntamento(id) {
+    return this.mutate("agenda", (arr) => (arr || []).filter((a) => a.id !== id),
+      `app: elimina appuntamento ${id}`);
   }
 
   // --- deep-link Telegram --------------------------------------------------
