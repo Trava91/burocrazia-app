@@ -64,12 +64,12 @@ eq("complete una-tantum: action",
   "remove");
 
 // --- newScadenza: schema completo + dedup id ---
-const items = [{ id: "bollo-auto-fiesta" }];
+const items = [{ id: "bollo-auto-ford-fiesta" }];
 const nv = m.newScadenza({ titolo: "Bollo auto Ford Fiesta", scadenza: "2027-01-01", categoria: "tasse", ricorrenza: "annuale", priorita: "alta" }, items);
-eq("newScadenza dedup id", nv.id, "bollo-auto-fiesta-2");
+eq("newScadenza dedup id", nv.id, "bollo-auto-ford-fiesta-2");
 eq("newScadenza schema chiavi",
   Object.keys(nv).join(","),
-  "id,titolo,categoria,scadenza,ricorrenza,preavviso_giorni,stato,priorita,note,documento,azione");
+  "id,titolo,categoria,scadenza,ricorrenza,preavviso_giorni,stato,priorita,note,documento,azione,orario_notifica,notificato");
 eq("newScadenza default preavviso", nv.preavviso_giorni, 30);
 eq("newScadenza categoria valida", nv.categoria, "tasse");
 eq("newScadenza categoria fallback",
