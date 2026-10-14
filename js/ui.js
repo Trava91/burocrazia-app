@@ -81,6 +81,7 @@ export class UI {
     // Tab Invia: deep-link bot
     this.refreshInviaLinks();
 
+    this.applicaProfilo();
     this.switchTab(this.tab);
     this.renderAll();
   }
@@ -95,7 +96,21 @@ export class UI {
   }
 
   // --- tab -----------------------------------------------------------------
+  // Schede del profilo: Valentina ha solo calendario e spesa.
+  tabsConsentite() {
+    return this.store.profilo === "valentina"
+      ? ["calendario", "spesa"]
+      : ["calendario", "scadenze", "appunti", "spesa", "invia"];
+  }
+
+  applicaProfilo() {
+    const ok = this.tabsConsentite();
+    document.querySelectorAll(".tab").forEach((b) => { b.hidden = !ok.includes(b.dataset.tab); });
+    if (!ok.includes(this.tab)) this.tab = "calendario";
+  }
+
   switchTab(tab) {
+    if (!this.tabsConsentite().includes(tab)) tab = "calendario";
     this.tab = tab;
     document.querySelectorAll(".tab").forEach((b) =>
       b.classList.toggle("active", b.dataset.tab === tab));

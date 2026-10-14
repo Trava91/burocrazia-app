@@ -1,0 +1,20 @@
+{
+  "name": "Calendario e spesa",
+  "short_name": "Calendario",
+  "description": "Turni, appuntamenti e lista della spesa di casa, in tempo reale.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#7C9461",
+  "background_color": "#F7F1E6",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "icons/icon-vale.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

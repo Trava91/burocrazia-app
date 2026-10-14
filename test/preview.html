@@ -15,7 +15,7 @@
   Uso (dalla cartella 03-burocrazia/):
     python -m http.server 8765
     → http://localhost:8765/app/test/preview.html
-  Parametri: ?vista=mese|anno|riepilogo  &persona=nicolo|valentina|insieme
+  Parametri: ?vista=mese|anno|riepilogo  &persona=nicolo|valentina|insieme  &profilo=valentina
              &giorno=YYYY-MM-DD (apre il dettaglio)  &mese=YYYY-MM  &tab=scadenze…
   Dati: ../../scadenzario/{scadenzario,memoria,lista-spesa,turni,agenda}.json
   più le note di Shifter dello screenshot se agenda.json è ancora vuota.
@@ -61,16 +61,25 @@
       { id: "dentista", titolo: "Dentista", data: "2026-10-22", ora: "17:00", avviso_min: 60 },
     ];
   }
+  // ?demo=1 → due appuntamenti finti per vedere "di chi è" (suo e di coppia)
+  if (new URLSearchParams(location.search).get("demo") && files["agenda.json"]) {
+    files["agenda.json"].appuntamenti.push(
+      { id: "demo-vale", titolo: "Parrucchiera", chi: "valentina", data: "2026-10-20", ora: "10:00", avviso_min: 60 },
+      { id: "demo-noi", titolo: "Cena da Eddy", chi: "entrambi", data: "2026-10-24", ora: "20:30", avviso_min: 60 },
+      { id: "demo-conf", titolo: "Dentista", chi: "valentina", data: "2026-10-15", ora: "03:00", avviso_min: 60 });
+  }
   let n = 0;
   const fakeApi = {
     async getFile(path) {
       if (!files[path]) { const e = new Error("404"); e.kind = "notfound"; throw e; }
       return { data: JSON.parse(JSON.stringify(files[path])), sha: "s" + n };
     },
-    async putFile(path, data) { files[path] = data; n++; console.log("PUT", path); return "s" + n; },
+    async putFile(path, data, sha, msg) { files[path] = data; n++; window.__ultimoCommit = msg; return "s" + n; },
   };
 
+  const qp = new URLSearchParams(location.search);
   const store = new Store();
+  store.setProfilo(qp.get("profilo") || "nicolo");   // ?profilo=valentina → la sua app
   store.api = fakeApi;
   store.token = "anteprima";
   const ui = new UI(store);
@@ -79,7 +88,7 @@
   store.onChange(() => ui.renderAll());
 
   const q = new URLSearchParams(location.search);
-  if (q.get("persona")) calUI.persona = q.get("persona");
+  calUI.persona = q.get("persona") || store.profilo;
   if (q.get("vista")) calUI.view = q.get("vista");
   if (q.get("mese")) { calUI.y = +q.get("mese").slice(0, 4); calUI.m = +q.get("mese").slice(5, 7); }
   if (q.get("tab")) ui.tab = q.get("tab");
@@ -164,6 +173,10 @@
     await store.eliminaScadenza("prova-scadenza");
     ok("scadenze: eliminata", F("scadenzario.json").scadenze.length === prima);
 
+    const atteso = store.profilo === "valentina" ? "app-vale:" : "app:";
+    ok(`commit con l'etichetta ${atteso}`, String(window.__ultimoCommit).startsWith(atteso));
+    await store.aggiungiAppuntamento({ titolo: "Di coppia", data: "2026-10-26", ora: "20:00", chi: "entrambi" });
+    ok("appuntamento di coppia salvato con chi", F("agenda.json").appuntamenti.find((x) => x.titolo === "Di coppia")?.chi === "entrambi");
     const ko = out.filter((r) => r.startsWith("KO")).length;
     const pre = document.createElement("pre");
     pre.id = "prova"; pre.textContent = out.join("\n");

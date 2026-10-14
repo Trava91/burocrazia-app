@@ -38,7 +38,7 @@ export class CalendarUI {
     this.y = Number(t.slice(0, 4));
     this.m = Number(t.slice(5, 7));
     this.view = "mese";
-    this.persona = lsGet(LS_PERSONA) || "nicolo";
+    this.persona = lsGet(LS_PERSONA) || store.profilo;
     this.selected = t;
     this.brush = null;          // { pid, tipo, periodo, start, pending: {iso: voci|null} }
     this._swipeAt = 0;
@@ -48,8 +48,30 @@ export class CalendarUI {
   // --- dati comodi ------------------------------------------------------------
   get turni() { return this.store.turni; }
   persone() { return Object.keys(this.turni?.persone || {}); }
-  /** persona su cui si scrive (nella vista Insieme: Nicolò) */
-  pidScrittura() { return this.persona === "insieme" ? "nicolo" : this.persona; }
+  /** chi usa l'app (profilo) e l'altra persona: nella vista Insieme i turni
+   *  di chi usa l'app sono grandi, quelli dell'altro nella fascia sotto */
+  get io() { return this.store.profilo; }
+  get altro() { return this.persone().find((p) => p !== this.io) || null; }
+  /** persona mostrata in grande (nella vista Insieme: chi usa l'app) */
+  pidVista() { return this.persona === "insieme" ? this.io : this.persona; }
+  /** persona su cui si scrive (nella vista Insieme: chi usa l'app) */
+  pidScrittura() { return this.pidVista(); }
+  nome(pid) { return this.turni?.persone?.[pid]?.nome || pid; }
+  /** appuntamenti della vista: di quella persona + di coppia; Insieme = tutti */
+  appVista() {
+    const all = this.store.appuntamenti();
+    return this.persona === "insieme" ? all : all.filter((a) => cal.visibile(a, this.persona));
+  }
+  /** le scadenze sono la burocrazia di Nicolò: solo nella sua app, nelle sue viste */
+  scadVista() {
+    if (this.io !== "nicolo" || this.persona === "valentina") return [];
+    return this.store.list("scadenze");
+  }
+  /** "sei di Pome 16-24" / "Valentina è di Notte 0-6" */
+  _testoConflitto(cf, data) {
+    const turno = cal.descriviGiorno(this.turni, cf.pid, data);
+    return cf.pid === this.io ? `sei di ${turno}` : `${this.nome(cf.pid)} è di ${turno}`;
+  }
   /** turni da mostrare: con le pennellate non ancora salvate */
   turniVista() {
     const t = this.turni;
@@ -129,7 +151,7 @@ export class CalendarUI {
     const sel = $("#cal-persona");
     if (!sel) return;
     // selettore persona (come il menu "Senza Nome" di Shifter)
-    const ids = this.persone();
+    const ids = this.persone().sort((a, b) => (a === this.io ? -1 : b === this.io ? 1 : 0));
     if (ids.length && !ids.includes(this.persona) && this.persona !== "insieme") this.persona = ids[0];
     const opts = ids.map((id) => [id, this.turni.persone[id].nome || id]);
     if (ids.length > 1) opts.push(["insieme", "Insieme"]);
@@ -169,21 +191,20 @@ export class CalendarUI {
   _htmlMese() {
     const turni = this.turniVista();
     const griglia = cal.grigliaMese(this.y, this.m);
-    const idxApp = cal.indiceAppuntamenti(this.store.appuntamenti());
-    const idxScad = cal.indiceScadenze(this.store.list("scadenze"));
+    const idxApp = cal.indiceAppuntamenti(this.appVista());
+    const idxScad = cal.indiceScadenze(this.scadVista());
     const oggi = cal.todayIso();
     const inMese = (i) => i >= 0 && i < 42 && Number(griglia[i].slice(5, 7)) === this.m;
     const insieme = this.persona === "insieme";
-    const pid = insieme ? "nicolo" : this.persona;
+    const pid = this.pidVista();
+    const altro = this.altro;
     const start = this.brush?.start;
 
     let h = this._head(`${cal.MESI[this.m - 1].toUpperCase()} ${this.y}`);
     h += `<div class="cal-dow">${cal.GIORNI_BREVI.map((g) => `<span>${g}</span>`).join("")}</div>`;
     h += `<div class="cal-grid${insieme ? " insieme" : ""}">`;
     griglia.forEach((iso, i) => {
-      // appuntamenti e scadenze sono di Nicolò: nella vista di Valentina solo i suoi turni
-      const mie = pid === "nicolo";
-      const c = cal.contenutoCasella({ turni, pid, iso, idxApp: mie ? idxApp : null, idxScad: mie ? idxScad : null });
+      const c = cal.contenutoCasella({ turni, pid, iso, idxApp, idxScad });
       const row = Math.floor(i / 7), col = i % 7;
       const cls = ["cc"];
       if (inMese(i)) {
@@ -200,8 +221,8 @@ export class CalendarUI {
 
       let bande = c.bande.map((b) =>
         `<span class="cc-band" style="${bandStyle(b, chiaro)}">${!c.testo || insieme ? `<span class="cc-bname">${esc(b.nome)}</span>` : ""}</span>`).join("");
-      if (insieme && this.turni.persone.valentina) {
-        const v = cal.contenutoCasella({ turni, pid: "valentina", iso, idxApp: null, idxScad: null });
+      if (insieme && altro) {
+        const v = cal.contenutoCasella({ turni, pid: altro, iso, idxApp: null, idxScad: null });
         bande += `<span class="cc-band cc-band-v">${v.bande.map((b) =>
           `<span style="${bandStyle(b, false)}"><span class="cc-bname">${esc(b.nome)}</span></span>`).join("")}</span>`;
       }
@@ -235,7 +256,7 @@ export class CalendarUI {
 
   _htmlAnno() {
     const turni = this.turniVista();
-    const pid = this.persona === "insieme" ? "nicolo" : this.persona;
+    const pid = this.pidVista();
     const oggi = cal.todayIso();
     let h = this._head(String(this.y));
     h += `<div class="year-grid">`;
@@ -256,10 +277,10 @@ export class CalendarUI {
   }
 
   _htmlRiepilogo() {
-    const pid = this.persona === "insieme" ? "nicolo" : this.persona;
+    const pid = this.pidVista();
     const turni = this.turniVista();
     const r = cal.riepilogoMese(turni, pid, this.y, this.m, {
-      agenda: this.store.appuntamenti(), scadenze: this.store.list("scadenze"),
+      agenda: this.store.appuntamenti(), scadenze: pid === "nicolo" ? this.scadVista() : [],
     });
     const nome = turni.persone[pid]?.nome || pid;
     const fmt = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(1).replace(".", ","));
@@ -374,10 +395,10 @@ export class CalendarUI {
     this._dayOpen = iso;
     const wd = cal.weekday(iso);
     const titolo = `${cal.GIORNI[wd]} ${Number(iso.slice(8))} ${cal.MESI[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
-    const pids = this.persona === "insieme" ? this.persone() : [this.persona];
+    const pids = this.persona === "insieme" ? [this.io, this.altro].filter(Boolean) : [this.persona];
     const fest = cal.nomeFestivita(iso);
-    const apps = cal.appuntamentiDelGiorno(this.store.appuntamenti(), iso);
-    const scad = cal.indiceScadenze(this.store.list("scadenze")).get(iso) || [];
+    const apps = cal.appuntamentiDelGiorno(this.appVista(), iso);
+    const scad = cal.indiceScadenze(this.scadVista()).get(iso) || [];
 
     let h = fest ? `<p class="day-fest">🎉 ${esc(fest)}</p>` : "";
     for (const pid of pids) {
@@ -387,7 +408,7 @@ export class CalendarUI {
       const ciclo = cal.tipoDef(turni, pid, cal.turnoCiclo(p, iso)).nome;
       const attivi = new Set(voci.map((v) => v.tipo));
       h += `<section class="day-sec" data-pid="${pid}">
-        <h3>Turno${pids.length > 1 || pid !== "nicolo" ? ` · ${esc(p.nome)}` : ""}${eccezione ? ` <small>(nel ciclo: ${esc(ciclo)})</small>` : ""}</h3>
+        <h3>Turno${pids.length > 1 || pid !== this.io ? ` · ${esc(p.nome)}` : ""}${eccezione ? ` <small>(nel ciclo: ${esc(ciclo)})</small>` : ""}</h3>
         <div class="chips">${Object.entries(p.tipi).map(([cod, t]) =>
           `<button type="button" class="chip${attivi.has(cod) ? " on" : ""}" data-chip="${esc(cod)}" style="background:${t.colore};color:${t.testo || "#2b2b2b"}">${esc(t.nome)}</button>`).join("")}</div>
         <label class="day-check"><input type="checkbox" data-secondo> il prossimo tocco aggiunge un secondo turno</label>
@@ -403,14 +424,16 @@ export class CalendarUI {
     h += `<section class="day-sec"><h3>Appuntamenti</h3>`;
     if (!apps.length) h += `<p class="muted small">Nessuno.</p>`;
     for (const a of apps) {
-      const cf = cal.conflitto(turni, a);
-      const cfNome = cf ? cal.tipoDef(turni, "nicolo", cf).nome : "";
+      const cf = cal.conflittoApp(turni, a);
+      const chi = cal.diChi(a);
+      const diChi = chi === "entrambi" ? " 💑" : chi !== this.io ? ` <small>· di ${esc(this.nome(chi))}</small>` : "";
       h += `<button type="button" class="day-item" data-app="${esc(a.id)}">
         <span class="day-time">${a.ora ? esc(a.ora) : "tutto il giorno"}</span>
-        <span class="day-what">${esc(a.titolo)}${a.luogo ? ` <small>· ${esc(a.luogo)}</small>` : ""}${cf ? `<span class="warn"> ⚠ durante il turno (${esc(cfNome)})</span>` : ""}</span></button>`;
+        <span class="day-what">${esc(a.titolo)}${diChi}${a.luogo ? ` <small>· ${esc(a.luogo)}</small>` : ""}${cf ? `<span class="warn"> ⚠ ${esc(this._testoConflitto(cf, iso))}</span>` : ""}</span></button>`;
     }
-    h += `</section><section class="day-sec"><h3>Scadenze</h3>`;
-    if (!scad.length) h += `<p class="muted small">Nessuna.</p>`;
+    const conScad = this.io === "nicolo";
+    if (conScad) h += `</section><section class="day-sec"><h3>Scadenze</h3>`;
+    if (conScad && !scad.length) h += `<p class="muted small">Nessuna.</p>`;
     for (const s of scad) {
       h += `<button type="button" class="day-item" data-scad="${esc(s.id)}">
         <span class="day-time">📌${s.orario_notifica ? " " + esc(s.orario_notifica) : ""}</span>
@@ -418,7 +441,7 @@ export class CalendarUI {
     }
     h += `</section><div class="day-actions">
       <button type="button" class="btn-secondary" data-new-app>＋ Appuntamento</button>
-      <button type="button" class="btn-secondary" data-new-scad>＋ Scadenza</button></div>`;
+      ${conScad ? `<button type="button" class="btn-secondary" data-new-scad>＋ Scadenza</button>` : ""}</div>`;
 
     const form = this.ui.openCustomSheet(titolo, h, { keep: refresh });
     this._wireDettaglio(form, iso);
@@ -455,7 +478,7 @@ export class CalendarUI {
       if (it) this.ui.openScadenzaForm(it);
     }));
     form.querySelector("[data-new-app]").addEventListener("click", () => this.apriFormAppuntamento(null, iso));
-    form.querySelector("[data-new-scad]").addEventListener("click", () => {
+    form.querySelector("[data-new-scad]")?.addEventListener("click", () => {
       this._dayOpen = null;
       this.ui.openScadenzaForm(null, { scadenza: iso });
     });
@@ -477,6 +500,8 @@ export class CalendarUI {
         <label>Avviso<select name="avviso">${AVVISI.map(([v, n]) =>
           `<option value="${v}"${String(avviso) === v ? " selected" : ""}>${n}</option>`).join("")}</select></label>
       </div>
+      <label>Di chi è<select name="chi">${cal.CHI.map((c) =>
+        `<option value="${c}"${(app ? cal.diChi(app) : this.io) === c ? " selected" : ""}>${c === "entrambi" ? "Di entrambi 💑" : esc(this.nome(c))}</option>`).join("")}</select></label>
       <label>Luogo<input name="luogo" type="text" value="${esc(app?.luogo || "")}"></label>
       <label>Note<textarea name="note">${esc(app?.note || "")}</textarea></label>
       <p class="form-hint warn" id="app-warn" hidden></p>
@@ -491,6 +516,7 @@ export class CalendarUI {
         luogo: (d.luogo || "").trim() || null,
         note: (d.note || "").trim(),
         avviso_min: d.ora && d.avviso !== "" ? Number(d.avviso) : null,
+        chi: d.chi,
       };
       if (!campi.titolo || !campi.data) return;
       this.selected = campi.data;
@@ -500,13 +526,14 @@ export class CalendarUI {
     const form = $("#sheet-form");
     const warn = () => {
       const el = form.querySelector("#app-warn");
-      const data = form.elements.data.value, ora = form.elements.ora.value;
-      const cf = this.turni ? cal.conflitto(this.turni, { data, ora }) : null;
+      const data = form.elements.data.value, ora = form.elements.ora.value, chi = form.elements.chi.value;
+      const cf = this.turni && data ? cal.conflittoApp(this.turni, { data, ora, chi }) : null;
       el.hidden = !cf;
-      if (cf) el.textContent = `⚠ Quel giorno sei di ${cal.descriviGiorno(this.turni, "nicolo", data)}: l'appuntamento cade durante il turno.`;
+      if (cf) el.textContent = `⚠ Quel giorno ${this._testoConflitto(cf, data)}: l'appuntamento cade durante il turno.`;
     };
     form.elements.data.addEventListener("input", warn);
     form.elements.ora.addEventListener("input", warn);
+    form.elements.chi.addEventListener("change", warn);
     warn();
     form.querySelector("#app-del")?.addEventListener("click", () => {
       this.ui.closeSheet();
@@ -577,10 +604,11 @@ export class CalendarUI {
   _disegnaMese() {
     const turni = this.turni;
     const insieme = this.persona === "insieme";
-    const pid = insieme ? "nicolo" : this.persona;
+    const pid = this.pidVista();
+    const altro = this.altro;
     const griglia = cal.grigliaMese(this.y, this.m);
-    const idxApp = cal.indiceAppuntamenti(this.store.appuntamenti());
-    const idxScad = cal.indiceScadenze(this.store.list("scadenze"));
+    const idxApp = cal.indiceAppuntamenti(this.appVista());
+    const idxScad = cal.indiceScadenze(this.scadVista());
     const W = 1080, PAD = 24, CW = (W - PAD * 2) / 7, CH = 168, TOP = 190;
     const tipi = Object.values(turni.persone[pid].tipi);
     const H = TOP + CH * 6 + 150;
@@ -594,7 +622,7 @@ export class CalendarUI {
     g.font = font(54, 700);
     g.fillText(`${cal.MESI[this.m - 1].toUpperCase()} ${this.y}`, W / 2, 62);
     g.font = font(30, 600); g.fillStyle = "#555";
-    const chi = insieme ? Object.values(turni.persone).map((p) => p.nome).join(" + ") : turni.persone[pid].nome;
+    const chi = insieme ? [pid, altro].filter(Boolean).map((x) => this.nome(x)).join(" + ") : this.nome(pid);
     g.fillText(chi, W / 2, 112);
     g.font = font(28, 700); g.fillStyle = "#4a5563";
     cal.GIORNI_BREVI.forEach((d, i) => g.fillText(d, PAD + CW * i + CW / 2, TOP - 30));
@@ -613,12 +641,11 @@ export class CalendarUI {
     const inMese = (i) => i >= 0 && i < 42 && Number(griglia[i].slice(5, 7)) === this.m;
     griglia.forEach((iso, i) => {
       const x = PAD + CW * (i % 7), y = TOP + CH * Math.floor(i / 7);
-      const mie = pid === "nicolo";
-      const c = cal.contenutoCasella({ turni, pid, iso, idxApp: mie ? idxApp : null, idxScad: mie ? idxScad : null });
+      const c = cal.contenutoCasella({ turni, pid, iso, idxApp, idxScad });
       g.globalAlpha = inMese(i) ? 1 : 0.35;
       const bande = [...c.bande];
       let hN = CH;
-      if (insieme && turni.persone.valentina) hN = CH * 0.64;
+      if (insieme && altro) hN = CH * 0.64;
       bande.forEach((b, k) => {
         const bh = hN / bande.length;
         g.fillStyle = b.colore;
@@ -628,9 +655,9 @@ export class CalendarUI {
           wrap(b.nome, CW - 12, 1).forEach((l) => g.fillText(l, x + CW / 2, y + bh * k + bh / 2 + 8));
         }
       });
-      if (insieme && turni.persone.valentina) {
-        const v = cal.turniDelGiorno(turni, "valentina", iso)[0];
-        const t = cal.tipoDef(turni, "valentina", v.tipo);
+      if (insieme && altro) {
+        const v = cal.turniDelGiorno(turni, altro, iso)[0];
+        const t = cal.tipoDef(turni, altro, v.tipo);
         g.fillStyle = t.colore; g.fillRect(x + 1, y + hN, CW - 2, CH - hN - 1);
         g.fillStyle = "#2b2b2b"; g.font = font(22, 500); g.textAlign = "center";
         g.fillText(t.nome, x + CW / 2, y + hN + (CH - hN) / 2);

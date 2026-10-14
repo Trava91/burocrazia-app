@@ -18,7 +18,14 @@ const LS = {
   bot: "buro.bot",
   snapshot: "buro.snapshot",
   lastSync: "buro.lastSync",
+  profilo: "buro.profilo",
 };
+
+// Profili dell'app: Nicolò = tutto; Valentina = solo calendario e spesa
+// (stesso token, scelta del 14/10/2026: i dati suoi non sono nascosti dal token,
+// solo non mostrati).
+export const PROFILI = { nicolo: "Nicolò", valentina: "Valentina" };
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 
 const DEFAULTS = { owner: "Trava91", repo: "scadenzario", bot: "cluadetrascrizione_bot" };
 
@@ -45,6 +52,7 @@ export class Store {
     this._pending = {};      // scritture in fila per file
     this._chain = {};
     this.offline = false;
+    this.profilo = PROFILI[lsGet(LS.profilo)] ? lsGet(LS.profilo) : "nicolo";
     this.lastSync = localStorage.getItem(LS.lastSync) || null;
     this._onChange = null;
     this._buildApi();
@@ -70,6 +78,19 @@ export class Store {
   }
 
   setBot(bot) { localStorage.setItem(LS.bot, bot || ""); this.bot = bot || ""; }
+
+  setProfilo(p) {
+    this.profilo = PROFILI[p] ? p : "nicolo";
+    try { localStorage.setItem(LS.profilo, this.profilo); } catch { /* best-effort */ }
+  }
+
+  /** Link che installa l'app di Valentina sul suo telefono: profilo + token
+   *  (lo stesso di Nicolò). Si costruisce qui, dal token già salvato: non passa
+   *  da nessun'altra parte. */
+  linkInvito(profilo = "valentina") {
+    const base = `${location.origin}${location.pathname}`;
+    return `${base}?profilo=${profilo}&setup=${encodeURIComponent(this.token)}`;
+  }
 
   removeToken() {
     localStorage.removeItem(LS.token);
@@ -161,6 +182,8 @@ export class Store {
       return Promise.reject(new ApiError("Sei offline: riprova quando torni online.", { kind: "network" }));
     }
     const { path, key } = FILES[file];
+    // nella cronologia del repo si distinguono le modifiche fatte da Valentina
+    if (this.profilo === "valentina") commitMsg = commitMsg.replace(/^app:/, "app-vale:");
     const base = () => clone(this.server[file] ?? EMPTY[file] ?? null);
     if (!base()) return Promise.reject(new ApiError(`${path} non c'è nel repo.`, { kind: "notfound" }));
 

@@ -27,8 +27,18 @@ oggi cerchiato in rosso, bordo spesso sul mese, sotto-schede MESE · ANNO · RIE
 - **Anteprima senza token:** da `03-burocrazia/` lancia `python -m http.server 8765` e apri
   `http://localhost:8765/app/test/preview.html` (dati locali, finto GitHub in memoria;
   `?prova=1` collauda lo store, `?immagine=1` mostra l'immagine da condividere).
-- **Futuro:** Valentina avrà una versione ridotta (calendari + spesa) → i dati condivisi
-  andranno in un repo a parte (un PAT apre tutto il repo, non i singoli file).
+- **Profilo Valentina (dal 15/10/2026):** stessa app, profilo salvato nel telefono
+  (`buro.profilo`). Solo schede **Calendario** e **Spesa**, si installa come "Calendario"
+  (`manifest-vale.webmanifest`, scelto da uno script in `<head>`). Nella vista **Insieme** i
+  turni grandi sono di chi usa l'app e quelli dell'altro stanno nella fascia sotto. Le
+  scadenze non le vede. I commit dal suo telefono hanno l'etichetta `app-vale:`.
+- **Stesso token** (scelta di Nicolò): il link d'installazione lo genera la sua app
+  (Impostazioni → "📲 Invita Valentina": `?profilo=valentina&setup=<token>`), quindi il
+  token non passa da nessun'altra parte. Limite accettato: il token apre tutto il repo,
+  e se lei perde il telefono si revoca e si fermano entrambe le app.
+- **Appuntamenti "di chi"** (`chi`: nicolo / valentina / entrambi): ognuno vede i propri e
+  quelli di coppia; Insieme li mostra tutti. Il ⚠ guarda il turno di chi ci va
+  (di coppia = di tutti e due). Avvisi Telegram per lei: da decidere dopo la prova.
 
 È un **repo Git separato e pubblico** (`Trava91/burocrazia-app`): il sorgente non
 contiene segreti (il PAT lo inserisce l'utente a runtime, resta in `localStorage`).

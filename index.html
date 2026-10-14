@@ -6,7 +6,21 @@
   <title>Burocrazia</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.webmanifest">
+  <!-- Manifest per profilo: l'app di Valentina si installa come "Calendario".
+       Il profilo arriva dal link (?profilo=valentina) e resta nel telefono. -->
+  <script>
+    (function () {
+      var p = null;
+      try {
+        var q = new URLSearchParams(location.search).get("profilo");
+        if (q === "valentina" || q === "nicolo") localStorage.setItem("buro.profilo", q);
+        p = localStorage.getItem("buro.profilo");
+      } catch (e) { /* storage bloccato: profilo di default */ }
+      var vale = p === "valentina";
+      document.write('<link rel="manifest" href="' + (vale ? "manifest-vale.webmanifest" : "manifest.webmanifest") + '">');
+      if (vale) document.title = "Calendario";
+    })();
+  </script>
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -144,10 +158,23 @@
       <div class="kv"><span>Ultimo sync</span><b id="set-lastsync">—</b></div>
       <div class="kv"><span>Versione</span><b id="set-version">—</b></div>
 
-      <label>Bot Telegram (username, senza @)
-        <input id="set-bot" type="text" placeholder="es. burocrazia_nico_bot">
+      <label>Profilo dell'app
+        <select id="set-profilo">
+          <option value="nicolo">Nicolò (tutto)</option>
+          <option value="valentina">Valentina (calendario e spesa)</option>
+        </select>
       </label>
-      <button id="set-save-bot" class="btn-secondary">Salva bot</button>
+      <div id="set-invito-box">
+        <button id="set-invito" class="btn-secondary">📲 Invita Valentina</button>
+        <p class="form-hint">Manda a Valentina il link che installa la sua app (calendario e spesa). Contiene il tuo token: dopo che l'ha aperto, il messaggio va cancellato.</p>
+      </div>
+
+      <div id="set-bot-box">
+        <label>Bot Telegram (username, senza @)
+          <input id="set-bot" type="text" placeholder="es. burocrazia_nico_bot">
+        </label>
+        <button id="set-save-bot" class="btn-secondary">Salva bot</button>
+      </div>
 
       <hr>
       <h2 class="set-title">Turni</h2>

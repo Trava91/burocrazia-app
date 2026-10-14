@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Calendario">
+  <!-- Sfondo pieno (icona maskable). Calendario con le caselle colorate dei turni, come Shifter. -->
+  <rect width="512" height="512" fill="#7C9461"/>
+  <rect x="112" y="132" width="288" height="264" rx="28" fill="#FFFDF9"/>
+  <rect x="112" y="132" width="288" height="64" rx="28" fill="#4D6438"/>
+  <rect x="112" y="168" width="288" height="28" fill="#4D6438"/>
+  <rect x="168" y="108" width="24" height="56" rx="12" fill="#FFFDF9"/>
+  <rect x="320" y="108" width="24" height="56" rx="12" fill="#FFFDF9"/>
+  <g>
+    <rect x="140" y="220" width="64" height="44" rx="8" fill="#FFF59D"/>
+    <rect x="224" y="220" width="64" height="44" rx="8" fill="#F48FB1"/>
+    <rect x="308" y="220" width="64" height="44" rx="8" fill="#C8E6C9"/>
+    <rect x="140" y="280" width="64" height="44" rx="8" fill="#F48FB1"/>
+    <rect x="224" y="280" width="64" height="44" rx="8" fill="#C8E6C9"/>
+    <rect x="308" y="280" width="64" height="44" rx="8" fill="#FFF59D"/>
+    <rect x="140" y="340" width="64" height="36" rx="8" fill="#C8E6C9"/>
+    <rect x="224" y="340" width="64" height="36" rx="8" fill="#90BEE6"/>
+    <rect x="308" y="340" width="64" height="36" rx="8" fill="#F48FB1"/>
+  </g>
+</svg>

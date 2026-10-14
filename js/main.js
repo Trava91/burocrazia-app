@@ -1,11 +1,11 @@
 // main.js — wiring: onboarding token, primo load, impostazioni, service worker.
 
-import { Store } from "./store.js";
+import { Store, PROFILI } from "./store.js";
 import { GitHubApi } from "./api.js";
 import { UI, showToast } from "./ui.js";
 import { CalendarUI } from "./cal-ui.js";
 
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.2.0";
 const PAT_URL = "https://github.com/settings/personal-access-tokens/new";
 
 const $ = (s) => document.querySelector(s);
@@ -83,6 +83,10 @@ async function bootApp() {
 // --- impostazioni ----------------------------------------------------------
 function openSettings() {
   $("#set-repo").textContent = `${store.owner}/${store.repo}`;
+  $("#set-profilo").value = store.profilo;
+  const nico = store.profilo === "nicolo";
+  $("#set-invito-box").hidden = !nico;
+  $("#set-bot-box").hidden = !nico;
   $("#set-version").textContent = APP_VERSION;
   $("#set-bot").value = store.bot || "";
   const ls = store.lastSync
@@ -104,6 +108,29 @@ function wireSettings() {
   });
 
   $("#set-change-token").addEventListener("click", () => { fillOnboarding(); show("onboarding"); });
+
+  // profilo dell'app (Nicolò = tutto; Valentina = calendario + spesa)
+  $("#set-profilo").addEventListener("change", (e) => {
+    store.setProfilo(e.target.value);
+    location.reload();
+  });
+
+  // link d'installazione per Valentina: costruito qui dal token già salvato
+  $("#set-invito").addEventListener("click", async () => {
+    const url = store.linkInvito("valentina");
+    const testo = "Ecco la tua app con calendario e spesa: aprila in Chrome e poi \"Aggiungi a schermata Home\". Dopo averla aperta cancella questo messaggio (contiene la chiave d'accesso).";
+    try {
+      if (navigator.share) { await navigator.share({ title: "Calendario e spesa", text: testo, url }); return; }
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Link copiato: mandalo a Valentina.", "ok");
+    } catch {
+      prompt("Copia il link e mandalo a Valentina:", url);
+    }
+  });
 
   $("#set-remove-token").addEventListener("click", () => {
     store.removeToken();
@@ -130,8 +157,13 @@ function registerSW() {
 // indirizzi/cronologia del browser più del necessario.
 function bootstrapFromUrl() {
   const params = new URLSearchParams(location.search);
+  const profilo = params.get("profilo");
+  if (PROFILI[profilo]) store.setProfilo(profilo); // (lo salva già lo script in <head>)
   const token = params.get("setup");
-  if (!token) return false;
+  if (!token) {
+    if (profilo) history.replaceState(null, "", location.pathname);
+    return false;
+  }
   history.replaceState(null, "", location.pathname);
   fillOnboarding();
   show("onboarding");

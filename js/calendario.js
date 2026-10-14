@@ -156,8 +156,32 @@ export function conflitto(turni, app, pid = "nicolo") {
   return null;
 }
 
+/** Conflitto di un appuntamento coi turni di chi ci va: {pid, tipo} o null.
+ *  Quelli di coppia controllano i turni di entrambi. */
+export function conflittoApp(turni, app) {
+  const c = diChi(app);
+  const pids = c === "entrambi" ? ["nicolo", "valentina"] : [c];
+  for (const pid of pids) {
+    const tipo = conflitto(turni, app, pid);
+    if (tipo) return { pid, tipo };
+  }
+  return null;
+}
+
 // --- appuntamenti (calco di agenda.py) -------------------------------------
 export const AVVISO_DEFAULT_MIN = 60;
+export const CHI = ["nicolo", "valentina", "entrambi"];
+
+/** Di chi è l'appuntamento (default Nicolò per le voci senza il campo). */
+export function diChi(a) {
+  return CHI.includes(a?.chi) ? a.chi : "nicolo";
+}
+
+/** `pid` lo vede se è suo o di coppia (come agenda.visibile). */
+export function visibile(a, pid) {
+  const c = diChi(a);
+  return c === pid || c === "entrambi";
+}
 
 export function appuntamentiDelGiorno(items, iso) {
   return (items || [])
@@ -197,7 +221,7 @@ export function etichettaAppuntamento(a) {
 }
 
 /** Nuovo appuntamento con lo schema completo (stessi id di agenda._new_id). */
-export function newAppuntamento({ titolo, data, ora, fine, luogo, note, avviso_min }, items) {
+export function newAppuntamento({ titolo, data, ora, fine, luogo, note, avviso_min, chi }, items) {
   const ids = new Set((items || []).map((a) => a.id));
   const base = slugAppunto(titolo);
   let id = base, n = 2;
@@ -208,6 +232,7 @@ export function newAppuntamento({ titolo, data, ora, fine, luogo, note, avviso_m
   return {
     id,
     titolo: titolo.trim(),
+    chi: CHI.includes(chi) ? chi : "nicolo",
     data,
     ora: ora || null,
     fine: fine || null,
@@ -287,7 +312,7 @@ export function grigliaMese(y, m) {
 
 /** Contenuto di una casella "come Shifter": fasce di colore dei turni, testo
  *  del primo impegno (o il nome del turno), icone. */
-export function contenutoCasella({ turni, pid, iso, idxApp, idxScad, conflittoPid = "nicolo" }) {
+export function contenutoCasella({ turni, pid, iso, idxApp, idxScad }) {
   const voci = turniDelGiorno(turni, pid, iso);
   const bande = voci.map((v) => {
     const t = tipoDef(turni, pid, v.tipo);
@@ -298,7 +323,7 @@ export function contenutoCasella({ turni, pid, iso, idxApp, idxScad, conflittoPi
   let testo = null;
   if (apps.length) testo = etichettaAppuntamento(apps[0]);
   else if (scad.length) testo = scad[0].titolo;
-  const conflitti = apps.filter((a) => conflitto(turni, a, conflittoPid));
+  const conflitti = apps.filter((a) => conflittoApp(turni, a));
   return {
     bande,
     testo,
@@ -390,7 +415,7 @@ export function riepilogoMese(turni, pid, y, m, { agenda = [], scadenze = [], to
   // impegni del mese: appuntamenti + scadenze, in ordine di data
   const pref = `${y}-${String(m).padStart(2, "0")}-`;
   const impegni = [];
-  for (const a of agenda || []) {
+  for (const a of (agenda || []).filter((x) => visibile(x, pid))) {
     if (a.data?.startsWith(pref)) impegni.push({ data: a.data, ora: a.ora || "", tipo: "app", testo: a.titolo, id: a.id });
   }
   for (const [iso, list] of indiceScadenze(scadenze, today)) {

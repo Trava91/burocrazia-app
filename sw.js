@@ -5,12 +5,13 @@
 // (snapshot) per la lettura offline. Qui si cache-a solo lo "shell" statico.
 // Le scritture offline non sono supportate in v1.
 
-const CACHE = "buro-v10"; // bump a ogni deploy per invalidare lo shell
+const CACHE = "buro-v11"; // bump a ogni deploy per invalidare lo shell
 
 const SHELL = [
   "./",
   "index.html",
   "manifest.webmanifest",
+  "manifest-vale.webmanifest",
   "css/styles.css",
   "js/main.js",
   "js/ui.js",
@@ -20,6 +21,7 @@ const SHELL = [
   "js/calendario.js",
   "js/cal-ui.js",
   "icons/icon.svg",
+  "icons/icon-vale.svg",
 ];
 
 self.addEventListener("install", (event) => {

@@ -94,6 +94,21 @@ eq("ordine: tutto il giorno prima",
   c.appuntamentiDelGiorno([{ data: "x", ora: "09:00", titolo: "b" }, { data: "x", ora: null, titolo: "a" }], "x").map((a) => a.titolo),
   ["a", "b"]);
 
+// --- di chi è (app di Valentina) ---
+eq("default chi = nicolo", [app.chi, c.diChi({})], ["nicolo", "nicolo"]);
+eq("chiavi come agenda.nuovo (Python)", Object.keys(app).join(","),
+  "id,titolo,chi,data,ora,fine,luogo,note,documento,avviso_min,notificato,fonte,rifinito");
+const lista = [{ titolo: "mio", chi: "nicolo" }, { titolo: "suo", chi: "valentina" }, { titolo: "noi", chi: "entrambi" }, { titolo: "vecchio" }];
+eq("Nicolò vede suoi + coppia", lista.filter((a) => c.visibile(a, "nicolo")).map((a) => a.titolo), ["mio", "noi", "vecchio"]);
+eq("Valentina vede suoi + coppia", lista.filter((a) => c.visibile(a, "valentina")).map((a) => a.titolo), ["suo", "noi"]);
+// 14/10/2026: Nicolò Pome 16-24, Valentina Notte 0-6
+eq("conflitto suo alle 3:00 (sua notte)", c.conflittoApp(turni, { data: "2026-10-14", ora: "03:00", chi: "valentina" }), { pid: "valentina", tipo: "V0" });
+eq("conflitto mio alle 3:00 = nessuno", c.conflittoApp(turni, { data: "2026-10-14", ora: "03:00", chi: "nicolo" }), null);
+eq("di coppia alle 17:00 → il mio Pome", c.conflittoApp(turni, { data: "2026-10-14", ora: "17:00", chi: "entrambi" }), { pid: "nicolo", tipo: "P" });
+eq("riepilogo Valentina: solo impegni suoi e di coppia",
+  c.riepilogoMese(turni, "valentina", 2026, 10, { agenda: [{ data: "2026-10-20", titolo: "mio" }, { data: "2026-10-21", titolo: "noi", chi: "entrambi" }] })
+    .impegni.map((x) => x.testo), ["noi"]);
+
 // --- casella ---
 const idxApp = c.indiceAppuntamenti([{ data: "2026-10-14", ora: "16:45", titolo: "Visita" }]);
 const cas = c.contenutoCasella({ turni, pid: "nicolo", iso: "2026-10-14", idxApp, idxScad: new Map() });
