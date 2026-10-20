@@ -5,7 +5,7 @@ appunti, spesa — parlando **direttamente** con l'API GitHub del repo
 `Trava91/scadenzario` (la stessa fonte di verità di Telegram). Zero server, zero
 build, costo zero: solo file statici su GitHub Pages + API GitHub.
 
-Ruolo nel sistema (vedi [`../PIANO-sistema-burocrazia.md`](../PIANO-sistema-burocrazia.md), Fase 7):
+Ruolo nel sistema (vedi [`../piano-sistema-burocrazia.md`](../piano-sistema-burocrazia.md), Fase 7):
 
 - **App = cruscotto.** Gestisci in fretta ciò che è già in lista (vedi, spunta con
   swipe, aggiungi con il calendario). Azioni **istantanee**, senza passare dal cron orario.

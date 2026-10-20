@@ -23,7 +23,7 @@ oggi cerchiato in rosso, bordo spesso sul mese, sotto-schede MESE · ANNO · RIE
   metà, torna al ciclo, appuntamenti, scadenze). Matita = **pennello** (con *Periodo*: ferie &
   co. saltano i riposi del ciclo); si salva in un solo commit. Cicli e orari nelle Impostazioni.
 - **Riepilogo:** conteggi per tipo, ore contro monte ore (lun-ven × 8), **voci da busta paga**
-  con le regole della scheda colleghi (`01-lavoro/buste-paga/scheda-colleghi/`), impegni del mese.
+  con le regole della scheda colleghi (`01-lavoro/buste-paga/controllo/scheda-colleghi/`), impegni del mese.
 - **Anteprima senza token:** da `03-burocrazia/` lancia `python -m http.server 8765` e apri
   `http://localhost:8765/app/test/preview.html` (dati locali, finto GitHub in memoria;
   `?prova=1` collauda lo store, `?immagine=1` mostra l'immagine da condividere).

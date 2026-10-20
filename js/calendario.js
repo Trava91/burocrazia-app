@@ -338,7 +338,7 @@ export function contenutoCasella({ turni, pid, iso, idxApp, idxScad }) {
 
 // --- riepilogo del mese ------------------------------------------------------
 // Regole della scheda "Controllo busta paga – turni laboratorio"
-// (01-lavoro/buste-paga/scheda-colleghi) e di ricostruisci_turni.py.
+// (01-lavoro/buste-paga/controllo/scheda-colleghi) e di ricostruisci_turni.py.
 export const REGOLE = {
   "laboratorio-kastamonu": {
     giorniTurno: ["M", "P", "N"],      // 44E: la G non conta
