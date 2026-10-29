@@ -342,7 +342,8 @@ export function contenutoCasella({ turni, pid, iso, idxApp, idxScad }) {
 export const REGOLE = {
   "laboratorio-kastamonu": {
     giorniTurno: ["M", "P", "N"],      // 44E: la G non conta
-    domenicale: ["M", "P"],           // 51T: ogni M o P di domenica
+    domenicale: ["M", "P", "N"],      // 51T: ogni turno che INIZIA di domenica (HR 28/10/2026: notte dom→lun 8 h, sab→dom 0)
+    festeLocali: [[11, 11, "San Martino"]],  // patrono della sede: festa in azienda, non nazionale
     assenze: [                        // ore di assenza → voce in busta
       { tipo: "F", voce: "Ferie", codice: "9FFI" },
       { tipo: "B", voce: "Banca ore", codice: "9BBI" },
@@ -373,7 +374,7 @@ export function riepilogoMese(turni, pid, y, m, { agenda = [], scadenze = [], to
   for (let d = 1; d <= daysInMonth(y, m); d++) {
     const iso = isoOf(y, m, d);
     const wd = weekday(iso);
-    const festa = Boolean(nomeFestivita(iso));
+    const festa = Boolean(nomeFestivita(iso)) || Boolean(regole?.festeLocali?.some(([mm, dd]) => isoOf(y, mm, dd) === iso));
     let lavorateGiorno = 0, assenzeGiorno = 0, aTurno = false;
     for (const v of turniDelGiorno(turni, pid, iso)) {
       const t = tipoDef(turni, pid, v.tipo);

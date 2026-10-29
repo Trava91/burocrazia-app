@@ -129,7 +129,13 @@ eq("ottobre: 4/10 Pome di San Francesco = festa lavorata", busta(ott)["S50I/S60I
 eq("ottobre: monte ore", ott.monteOre, { monte: 176, coperte: 160, diff: -16 });
 const nov = c.riepilogoMese(turni, "nicolo", 2026, 11);
 eq("novembre: 1/11 Pome di festa → FL, niente notte", [busta(nov)["43VI Ore di notte"], busta(nov)["S50I/S60I Feste lavorate"], busta(nov)["51T Ore di domenica"]], [18, 8, 32]);
-eq("novembre: monte ore", nov.monteOre, { monte: 168, coperte: 144, diff: -24 });
+// San Martino (11/11, mercoledì) è festa in azienda: copre 8 h come le feste infrasettimanali
+eq("novembre: monte ore (San Martino copre 8 h)", nov.monteOre, { monte: 168, coperte: 152, diff: -16 });
+eq("San Martino non è tra le feste nazionali", c.nomeFestivita("2026-11-11"), null);
+// regola HR (28/10/2026): la notte conta nel giorno in cui inizia → dom→lun 8 h di 51T, sab→dom 0
+const notti = { persone: c.applicaTurni(turni.persone, "nicolo", { "2026-11-07": [{ tipo: "N" }], "2026-11-29": [{ tipo: "N" }] }) };
+eq("Notte di sab 7/11 = 0 h di domenica, Notte di dom 29/11 = 8 h",
+  busta(c.riepilogoMese(notti, "nicolo", 2026, 11))["51T Ore di domenica"], 40);
 const ferie = { persone: c.applicaTurni(turni.persone, "nicolo", per) };
 const ottF = c.riepilogoMese(ferie, "nicolo", 2026, 10);
 eq("ferie 5 giorni = 40 h in 9FFI", busta(ottF)["9FFI Ferie"], 40);
