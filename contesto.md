@@ -39,9 +39,7 @@ oggi cerchiato in rosso, bordo spesso sul mese, sotto-schede MESE · ANNO · RIE
   le settimane. Tocco su un impegno = modifica, sul resto della riga = dettaglio; il pennello
   dipinge le righe. Le viste singole restano griglie. Scartata prima un'ibrida (titoli in casella
   + elenco sotto la griglia): non piaceva. Anteprima con `?demo=1&persona=insieme`.
-  **Per ora solo nell'app di Nicolò** (la prova prima di darla a Valentina): vista a righe e
-  scadenze di coppia per lei si accendono aggiungendo `"valentina"` a `INSIEME_NUOVA` in
-  `js/cal-ui.js` (e bump del SW).
+  Provata prima nell'app di Nicolò, poi accesa per tutti e due il 30/10/2026.
 - **Stesso token** (scelta di Nicolò): il link d'installazione lo genera la sua app
   (Impostazioni → "📲 Invita Valentina": `?profilo=valentina&setup=<token>`), quindi il
   token non passa da nessun'altra parte. Limite accettato: il token apre tutto il repo,

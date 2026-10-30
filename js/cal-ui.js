@@ -8,9 +8,6 @@ import { showToast } from "./ui.js";
 
 const $ = (sel) => document.querySelector(sel);
 const LS_PERSONA = "buro.cal.persona";
-// Vista Insieme nuova (il mese a righe, scadenze di coppia a Valentina):
-// per ora solo nell'app di Nicolò, che la prova prima di darla a lei.
-const INSIEME_NUOVA = ["nicolo"];
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) =>
@@ -55,7 +52,6 @@ export class CalendarUI {
    *  di chi usa l'app sono grandi, quelli dell'altro nella fascia sotto */
   get io() { return this.store.profilo; }
   get altro() { return this.persone().find((p) => p !== this.io) || null; }
-  get nuova() { return INSIEME_NUOVA.includes(this.io); }
   /** persona mostrata in grande (nella vista Insieme: chi usa l'app) */
   pidVista() { return this.persona === "insieme" ? this.io : this.persona; }
   /** persona su cui si scrive (nella vista Insieme: chi usa l'app) */
@@ -69,9 +65,7 @@ export class CalendarUI {
   /** le scadenze sono la burocrazia di Nicolò: tutte nella sua app (nelle sue viste);
    *  nell'app di Valentina solo quelle di casa/coppia, in sola lettura */
   scadVista() {
-    if (this.io !== "nicolo") {
-      return this.nuova ? this.store.list("scadenze").filter((s) => s.categoria === "casa-coppia") : [];
-    }
+    if (this.io !== "nicolo") return this.store.list("scadenze").filter((s) => s.categoria === "casa-coppia");
     if (this.persona === "valentina") return [];
     return this.store.list("scadenze");
   }
@@ -202,7 +196,7 @@ export class CalendarUI {
   }
 
   _htmlMese() {
-    if (this.persona === "insieme" && this.nuova) return this._htmlRighe();
+    if (this.persona === "insieme") return this._htmlRighe();
     const turni = this.turniVista();
     const griglia = cal.grigliaMese(this.y, this.m);
     const idxApp = cal.indiceAppuntamenti(this.appVista());
@@ -254,7 +248,7 @@ export class CalendarUI {
     return h;
   }
 
-  /** Vista Insieme (nuova): il mese a righe, un giorno per riga con i turni di
+  /** Vista Insieme: il mese a righe, un giorno per riga con i turni di
    *  tutti e due affiancati e gli impegni per intero, note comprese. */
   _htmlRighe() {
     const turni = this.turniVista();
