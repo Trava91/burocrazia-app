@@ -67,6 +67,10 @@
       { id: "demo-vale", titolo: "Parrucchiera", chi: "valentina", data: "2026-10-20", ora: "10:00", avviso_min: 60 },
       { id: "demo-noi", titolo: "Cena da Eddy", chi: "entrambi", data: "2026-10-24", ora: "20:30", avviso_min: 60 },
       { id: "demo-conf", titolo: "Dentista", chi: "valentina", data: "2026-10-15", ora: "03:00", avviso_min: 60 });
+    // una scadenza di casa/coppia con data: l'unica che vede anche l'app di Valentina
+    files["scadenzario.json"]?.scadenze.push(
+      { id: "demo-casa", titolo: "Rata condominio", categoria: "casa-coppia", scadenza: "2026-11-16",
+        stato: "attiva", note: "Bonifico all'amministratore" });
   }
   let n = 0;
   const fakeApi = {

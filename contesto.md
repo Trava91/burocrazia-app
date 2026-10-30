@@ -30,8 +30,17 @@ oggi cerchiato in rosso, bordo spesso sul mese, sotto-schede MESE · ANNO · RIE
 - **Profilo Valentina (dal 15/10/2026):** stessa app, profilo salvato nel telefono
   (`buro.profilo`). Solo schede **Calendario** e **Spesa**, si installa come "Calendario"
   (`manifest-vale.webmanifest`, scelto da uno script in `<head>`). Nella vista **Insieme** i
-  turni grandi sono di chi usa l'app e quelli dell'altro stanno nella fascia sotto. Le
-  scadenze non le vede. I commit dal suo telefono hanno l'etichetta `app-vale:`.
+  turni grandi sono di chi usa l'app e quelli dell'altro stanno nella fascia sotto. Delle
+  scadenze vede solo quelle **Casa / coppia**, in sola lettura (dal 30/10/2026). I commit dal
+  suo telefono hanno l'etichetta `app-vale:`.
+- **Vista Insieme leggibile (dal 30/10/2026, richiesta di Valentina):** nei giorni con impegni
+  la casella mostra i titoli (fino a 3, poi "+N") e i due turni scendono in strisce sottili in
+  fondo; sotto griglia e legenda c'è l'elenco **Impegni del mese** giorno per giorno (turni di
+  tutti e due, ora, di chi, luogo, note per intero). Tocco su un impegno = modifica, sul giorno
+  = dettaglio. Le viste singole sono quelle di prima. Anteprima con `?demo=1&persona=insieme`.
+  **Per ora solo nell'app di Nicolò** (la prova prima di darla a Valentina): nuova vista e
+  scadenze di coppia per lei si accendono aggiungendo `"valentina"` a `INSIEME_NUOVA` in
+  `js/cal-ui.js` (e bump del SW).
 - **Stesso token** (scelta di Nicolò): il link d'installazione lo genera la sua app
   (Impostazioni → "📲 Invita Valentina": `?profilo=valentina&setup=<token>`), quindi il
   token non passa da nessun'altra parte. Limite accettato: il token apre tutto il repo,

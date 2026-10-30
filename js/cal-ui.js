@@ -8,6 +8,9 @@ import { showToast } from "./ui.js";
 
 const $ = (sel) => document.querySelector(sel);
 const LS_PERSONA = "buro.cal.persona";
+// Vista Insieme nuova (titoli in casella, elenco impegni, scadenze di coppia a
+// Valentina): per ora solo nell'app di Nicolò, che la prova prima di darla a lei.
+const INSIEME_NUOVA = ["nicolo"];
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) =>
@@ -52,6 +55,7 @@ export class CalendarUI {
    *  di chi usa l'app sono grandi, quelli dell'altro nella fascia sotto */
   get io() { return this.store.profilo; }
   get altro() { return this.persone().find((p) => p !== this.io) || null; }
+  get nuova() { return INSIEME_NUOVA.includes(this.io); }
   /** persona mostrata in grande (nella vista Insieme: chi usa l'app) */
   pidVista() { return this.persona === "insieme" ? this.io : this.persona; }
   /** persona su cui si scrive (nella vista Insieme: chi usa l'app) */
@@ -62,9 +66,13 @@ export class CalendarUI {
     const all = this.store.appuntamenti();
     return this.persona === "insieme" ? all : all.filter((a) => cal.visibile(a, this.persona));
   }
-  /** le scadenze sono la burocrazia di Nicolò: solo nella sua app, nelle sue viste */
+  /** le scadenze sono la burocrazia di Nicolò: tutte nella sua app (nelle sue viste);
+   *  nell'app di Valentina solo quelle di casa/coppia, in sola lettura */
   scadVista() {
-    if (this.io !== "nicolo" || this.persona === "valentina") return [];
+    if (this.io !== "nicolo") {
+      return this.nuova ? this.store.list("scadenze").filter((s) => s.categoria === "casa-coppia") : [];
+    }
+    if (this.persona === "valentina") return [];
     return this.store.list("scadenze");
   }
   /** "sei di Pome 16-24" / "Valentina è di Notte 0-6" */
@@ -128,6 +136,11 @@ export class CalendarUI {
 
   _onBodyClick(e) {
     if (Date.now() - this._swipeAt < 350) return; // era uno swipe, non un tocco
+    if (this.brush && e.target.closest(".cal-agenda")) return; // col pennello si dipinge solo la griglia
+    const app = e.target.closest("[data-app]");
+    if (app) { this.apriFormAppuntamento(this.store.findAppuntamento(app.dataset.app), app.dataset.day); return; }
+    const sc = e.target.closest("[data-scad]");
+    if (sc) { const it = this.store.findScadenza(sc.dataset.scad); if (it) this.ui.openScadenzaForm(it); return; }
     const nav = e.target.closest("[data-nav]");
     if (nav) {
       const v = nav.dataset.nav;
@@ -218,26 +231,82 @@ export class CalendarUI {
       if (c.festivo) cls.push("fest");
       if (iso === start) cls.push("start");
       const chiaro = Boolean(c.testo) && !insieme;
+      const v = insieme && altro ? cal.contenutoCasella({ turni, pid: altro, iso, idxApp: null, idxScad: null }) : null;
+      const extra = c.nApp + c.nScad > 1 ? ` +${c.nApp + c.nScad - 1}` : "";
 
-      let bande = c.bande.map((b) =>
-        `<span class="cc-band" style="${bandStyle(b, chiaro)}">${!c.testo || insieme ? `<span class="cc-bname">${esc(b.nome)}</span>` : ""}</span>`).join("");
-      if (insieme && altro) {
-        const v = cal.contenutoCasella({ turni, pid: altro, iso, idxApp: null, idxScad: null });
-        bande += `<span class="cc-band cc-band-v">${v.bande.map((b) =>
-          `<span style="${bandStyle(b, false)}"><span class="cc-bname">${esc(b.nome)}</span></span>`).join("")}</span>`;
+      let bande, txt = "";
+      if (insieme && this.nuova && c.testo && c.bande.length) {
+        // Insieme con impegni: i titoli in alto, i due turni in strisce sottili in fondo
+        const striscia = (bb, cl) => `<span class="cc-strip${cl}">${bb.map((b) =>
+          `<span style="${bandStyle(b, false)}">${esc(b.nome)}</span>`).join("")}</span>`;
+        bande = `<span class="cc-band" style="${bandStyle(c.bande[0], true)}"></span>${striscia(c.bande, "")}${v ? striscia(v.bande, " cc-strip-v") : ""}`;
+        const imp = [...(idxApp.get(iso) || []), ...(idxScad.get(iso) || [])].map((x) => esc(x.titolo));
+        const righe = imp.length > 3 ? [...imp.slice(0, 2), `+${imp.length - 2}`] : imp;
+        txt = `<span class="cc-imp">${righe.map((r) => `<span>${r}</span>`).join("")}</span>`;
+      } else {
+        bande = c.bande.map((b) =>
+          `<span class="cc-band" style="${bandStyle(b, chiaro)}">${!c.testo || insieme ? `<span class="cc-bname">${esc(b.nome)}</span>` : ""}</span>`).join("");
+        if (v) {
+          bande += `<span class="cc-band cc-band-v">${v.bande.map((b) =>
+            `<span style="${bandStyle(b, false)}"><span class="cc-bname">${esc(b.nome)}</span></span>`).join("")}</span>`;
+        }
+        if (c.testo && !insieme) txt = `<span class="cc-txt">${esc(c.testo)}${extra}</span>`;
       }
       const ico = `${c.nApp ? "✉" : ""}${c.nScad ? "📌" : ""}${c.conflitto ? "⚠" : ""}`;
-      const extra = c.nApp + c.nScad > 1 ? ` +${c.nApp + c.nScad - 1}` : "";
       h += `<button type="button" class="${cls.join(" ")}" data-iso="${iso}" aria-label="${esc(this._ariaGiorno(iso, c))}">
         <span class="cc-bands">${bande}</span>
         ${ico ? `<span class="cc-ico">${ico}</span>` : ""}
         <span class="cc-num">${Number(iso.slice(8))}</span>
-        ${c.testo && !insieme ? `<span class="cc-txt">${esc(c.testo)}${extra}</span>` : ""}
+        ${txt}
       </button>`;
     });
     h += `</div>`;
     h += this._htmlLegenda(turni, pid);
+    if (insieme && this.nuova) h += this._htmlAgenda(turni, idxApp, idxScad);
     return h;
+  }
+
+  /** Vista Insieme: sotto la griglia gli impegni del mese giorno per giorno,
+   *  con i turni di tutti e due, ora, luogo, di chi e note per intero. */
+  _htmlAgenda(turni, idxApp, idxScad) {
+    const pref = `${this.y}-${String(this.m).padStart(2, "0")}-`;
+    const giorni = [...new Set([...idxApp.keys(), ...idxScad.keys()])].filter((d) => d.startsWith(pref)).sort();
+    const oggi = cal.todayIso();
+    const altro = this.altro;
+    const pills = (pid, iso, nome) => cal.turniDelGiorno(turni, pid, iso).map((x) => {
+      const t = cal.tipoDef(turni, pid, x.tipo);
+      return `<span class="ag-pill" style="background:${t.colore};color:${t.testo || "#2b2b2b"}">${nome ? esc(nome) + " · " : ""}${esc(t.nome || x.tipo)}</span>`;
+    }).join("");
+    const nota = (n) => (n ? `<span class="ag-note">${esc(n)}</span>` : "");
+    const modScad = this.io === "nicolo";
+
+    let h = `<section class="cal-agenda"><h3>Impegni di ${esc(cal.MESI[this.m - 1].toLowerCase())}</h3>`;
+    if (!giorni.length) h += `<p class="muted small">Nessun impegno questo mese.</p>`;
+    for (const iso of giorni) {
+      const fest = cal.nomeFestivita(iso);
+      h += `<div class="ag-day${iso < oggi ? " passato" : ""}">
+        <button type="button" class="ag-head" data-imp="${iso}">
+          <b>${cal.GIORNI_BREVI[cal.weekday(iso)]} ${Number(iso.slice(8))}</b>${iso === oggi ? `<span class="ag-oggi">oggi</span>` : ""}
+          <span class="ag-pills">${pills(this.io, iso)}${altro ? pills(altro, iso, this.nome(altro)) : ""}</span>
+          ${fest ? `<span class="ag-fest">🎉 ${esc(fest)}</span>` : ""}
+        </button>`;
+      for (const a of idxApp.get(iso) || []) {
+        const cf = cal.conflittoApp(turni, a);
+        const chi = cal.diChi(a);
+        const diChi = chi === "entrambi" ? " 💑" : chi !== this.io ? ` <small>· di ${esc(this.nome(chi))}</small>` : "";
+        h += `<button type="button" class="day-item" data-app="${esc(a.id)}" data-day="${iso}">
+          <span class="day-time">${a.ora ? esc(a.ora) + (a.fine ? `<small>–${esc(a.fine)}</small>` : "") : "<small>tutto il giorno</small>"}</span>
+          <span class="day-what"><b>${esc(a.titolo)}</b>${diChi}${a.luogo ? ` <small>· ${esc(a.luogo)}</small>` : ""}${cf ? `<span class="warn"> ⚠ ${esc(this._testoConflitto(cf, iso))}</span>` : ""}${nota(a.note)}</span></button>`;
+      }
+      for (const s of idxScad.get(iso) || []) {
+        const apri = modScad ? `button type="button" data-scad="${esc(s.id)}"` : "div";
+        h += `<${apri} class="day-item">
+          <span class="day-time">📌${s.orario_notifica ? " " + esc(s.orario_notifica) : ""}</span>
+          <span class="day-what"><b>${esc(s.titolo)}</b> <small>· ${esc(CATEGORIE[s.categoria] || s.categoria)}</small>${nota(s.note)}</span></${modScad ? "button" : "div"}>`;
+      }
+      h += `</div>`;
+    }
+    return h + `</section>`;
   }
 
   _ariaGiorno(iso, c) {
@@ -431,13 +500,15 @@ export class CalendarUI {
         <span class="day-time">${a.ora ? esc(a.ora) : "tutto il giorno"}</span>
         <span class="day-what">${esc(a.titolo)}${diChi}${a.luogo ? ` <small>· ${esc(a.luogo)}</small>` : ""}${cf ? `<span class="warn"> ⚠ ${esc(this._testoConflitto(cf, iso))}</span>` : ""}</span></button>`;
     }
+    // le scadenze si modificano solo dall'app di Nicolò (Valentina vede quelle di coppia)
     const conScad = this.io === "nicolo";
-    if (conScad) h += `</section><section class="day-sec"><h3>Scadenze</h3>`;
+    if (conScad || scad.length) h += `</section><section class="day-sec"><h3>Scadenze</h3>`;
     if (conScad && !scad.length) h += `<p class="muted small">Nessuna.</p>`;
     for (const s of scad) {
-      h += `<button type="button" class="day-item" data-scad="${esc(s.id)}">
+      const apri = conScad ? `button type="button" data-scad="${esc(s.id)}"` : "div";
+      h += `<${apri} class="day-item">
         <span class="day-time">📌${s.orario_notifica ? " " + esc(s.orario_notifica) : ""}</span>
-        <span class="day-what">${esc(s.titolo)} <small>· ${esc(CATEGORIE[s.categoria] || s.categoria)}</small></span></button>`;
+        <span class="day-what">${esc(s.titolo)} <small>· ${esc(CATEGORIE[s.categoria] || s.categoria)}</small></span></${conScad ? "button" : "div"}>`;
     }
     h += `</section><div class="day-actions">
       <button type="button" class="btn-secondary" data-new-app>＋ Appuntamento</button>

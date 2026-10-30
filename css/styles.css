@@ -436,6 +436,18 @@ textarea { resize: vertical; min-height: 84px; }
   font-size: .82rem; line-height: 1.15; text-align: center; overflow: hidden;
   overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
 }
+/* Insieme con impegni: titoli in alto, i due turni in strisce sottili in fondo */
+.cc-strip { flex: 0 0 17px; display: flex; min-height: 0; }
+.cc-strip > span {
+  flex: 1; min-width: 0; font-size: .68rem; line-height: 17px; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 1px;
+}
+.cc-strip-v { border-top: 1px dashed rgba(0, 0, 0, .25); }
+.cc-imp {
+  position: absolute; left: 2px; right: 2px; top: 23px; bottom: 36px; z-index: 2;
+  display: flex; flex-direction: column; overflow: hidden; font-size: .74rem; line-height: 1.2; font-weight: 600;
+}
+.cc-imp > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 0 auto; }
 .cc.out { opacity: .38; }
 .cc.start { outline: 3px dashed var(--primary); outline-offset: -3px; z-index: 3; }
 /* bordo spesso attorno ai giorni del mese, come Shifter */
@@ -452,6 +464,28 @@ textarea { resize: vertical; min-height: 84px; }
 .cal-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .cal-legend i, .dot { display: inline-block; width: 13px; height: 13px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, .15); }
 .dot { margin-right: 8px; vertical-align: -2px; }
+
+/* vista Insieme: impegni del mese sotto la griglia */
+.cal-agenda { margin: 10px 6px 0; }
+.cal-agenda h3 { margin: 6px 2px 4px; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.ag-day { border-top: 1px solid var(--border); padding: 8px 0 10px; }
+.ag-day.passato { opacity: .55; }
+.ag-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; width: 100%;
+  background: transparent; border: 0; padding: 2px; cursor: pointer; font: inherit; color: var(--text); text-align: left;
+}
+.ag-head b { font-size: .95rem; min-width: 3.6em; }
+.ag-oggi { color: var(--cal-red); font-weight: 800; font-size: .8rem; text-transform: uppercase; }
+.ag-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.ag-pill { border-radius: 999px; padding: 2px 9px; font-size: .78rem; font-weight: 600; }
+.ag-fest { color: var(--cal-red); font-size: .8rem; font-weight: 600; }
+.ag-note {
+  display: block; margin-top: 3px; font-size: .84rem; color: var(--muted); white-space: pre-line;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+}
+.cal-agenda .day-item { padding: 8px 10px; margin-top: 5px; }
+.cal-agenda .day-time { flex: 0 0 3.6em; line-height: 1.25; }
+div.day-item { cursor: default; }
 
 /* vista anno */
 .year-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 8px; padding: 4px 6px; }
