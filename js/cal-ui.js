@@ -8,8 +8,8 @@ import { showToast } from "./ui.js";
 
 const $ = (sel) => document.querySelector(sel);
 const LS_PERSONA = "buro.cal.persona";
-// Vista Insieme nuova (titoli in casella, elenco impegni, scadenze di coppia a
-// Valentina): per ora solo nell'app di Nicolò, che la prova prima di darla a lei.
+// Vista Insieme nuova (il mese a righe, scadenze di coppia a Valentina):
+// per ora solo nell'app di Nicolò, che la prova prima di darla a lei.
 const INSIEME_NUOVA = ["nicolo"];
 
 function esc(s) {
@@ -136,10 +136,10 @@ export class CalendarUI {
 
   _onBodyClick(e) {
     if (Date.now() - this._swipeAt < 350) return; // era uno swipe, non un tocco
-    if (this.brush && e.target.closest(".cal-agenda")) return; // col pennello si dipinge solo la griglia
-    const app = e.target.closest("[data-app]");
+    // vista a righe: tocco su un impegno = modifica (col pennello invece si dipinge la riga)
+    const app = !this.brush && e.target.closest("[data-app]");
     if (app) { this.apriFormAppuntamento(this.store.findAppuntamento(app.dataset.app), app.dataset.day); return; }
-    const sc = e.target.closest("[data-scad]");
+    const sc = !this.brush && e.target.closest("[data-scad]");
     if (sc) { const it = this.store.findScadenza(sc.dataset.scad); if (it) this.ui.openScadenzaForm(it); return; }
     const nav = e.target.closest("[data-nav]");
     if (nav) {
@@ -202,6 +202,7 @@ export class CalendarUI {
   }
 
   _htmlMese() {
+    if (this.persona === "insieme" && this.nuova) return this._htmlRighe();
     const turni = this.turniVista();
     const griglia = cal.grigliaMese(this.y, this.m);
     const idxApp = cal.indiceAppuntamenti(this.appVista());
@@ -231,82 +232,70 @@ export class CalendarUI {
       if (c.festivo) cls.push("fest");
       if (iso === start) cls.push("start");
       const chiaro = Boolean(c.testo) && !insieme;
-      const v = insieme && altro ? cal.contenutoCasella({ turni, pid: altro, iso, idxApp: null, idxScad: null }) : null;
-      const extra = c.nApp + c.nScad > 1 ? ` +${c.nApp + c.nScad - 1}` : "";
 
-      let bande, txt = "";
-      if (insieme && this.nuova && c.testo && c.bande.length) {
-        // Insieme con impegni: i titoli in alto, i due turni in strisce sottili in fondo
-        const striscia = (bb, cl) => `<span class="cc-strip${cl}">${bb.map((b) =>
-          `<span style="${bandStyle(b, false)}">${esc(b.nome)}</span>`).join("")}</span>`;
-        bande = `<span class="cc-band" style="${bandStyle(c.bande[0], true)}"></span>${striscia(c.bande, "")}${v ? striscia(v.bande, " cc-strip-v") : ""}`;
-        const imp = [...(idxApp.get(iso) || []), ...(idxScad.get(iso) || [])].map((x) => esc(x.titolo));
-        const righe = imp.length > 3 ? [...imp.slice(0, 2), `+${imp.length - 2}`] : imp;
-        txt = `<span class="cc-imp">${righe.map((r) => `<span>${r}</span>`).join("")}</span>`;
-      } else {
-        bande = c.bande.map((b) =>
-          `<span class="cc-band" style="${bandStyle(b, chiaro)}">${!c.testo || insieme ? `<span class="cc-bname">${esc(b.nome)}</span>` : ""}</span>`).join("");
-        if (v) {
-          bande += `<span class="cc-band cc-band-v">${v.bande.map((b) =>
-            `<span style="${bandStyle(b, false)}"><span class="cc-bname">${esc(b.nome)}</span></span>`).join("")}</span>`;
-        }
-        if (c.testo && !insieme) txt = `<span class="cc-txt">${esc(c.testo)}${extra}</span>`;
+      let bande = c.bande.map((b) =>
+        `<span class="cc-band" style="${bandStyle(b, chiaro)}">${!c.testo || insieme ? `<span class="cc-bname">${esc(b.nome)}</span>` : ""}</span>`).join("");
+      if (insieme && altro) {
+        const v = cal.contenutoCasella({ turni, pid: altro, iso, idxApp: null, idxScad: null });
+        bande += `<span class="cc-band cc-band-v">${v.bande.map((b) =>
+          `<span style="${bandStyle(b, false)}"><span class="cc-bname">${esc(b.nome)}</span></span>`).join("")}</span>`;
       }
       const ico = `${c.nApp ? "✉" : ""}${c.nScad ? "📌" : ""}${c.conflitto ? "⚠" : ""}`;
+      const extra = c.nApp + c.nScad > 1 ? ` +${c.nApp + c.nScad - 1}` : "";
       h += `<button type="button" class="${cls.join(" ")}" data-iso="${iso}" aria-label="${esc(this._ariaGiorno(iso, c))}">
         <span class="cc-bands">${bande}</span>
         ${ico ? `<span class="cc-ico">${ico}</span>` : ""}
         <span class="cc-num">${Number(iso.slice(8))}</span>
-        ${txt}
+        ${c.testo && !insieme ? `<span class="cc-txt">${esc(c.testo)}${extra}</span>` : ""}
       </button>`;
     });
     h += `</div>`;
     h += this._htmlLegenda(turni, pid);
-    if (insieme && this.nuova) h += this._htmlAgenda(turni, idxApp, idxScad);
     return h;
   }
 
-  /** Vista Insieme: sotto la griglia gli impegni del mese giorno per giorno,
-   *  con i turni di tutti e due, ora, luogo, di chi e note per intero. */
-  _htmlAgenda(turni, idxApp, idxScad) {
-    const pref = `${this.y}-${String(this.m).padStart(2, "0")}-`;
-    const giorni = [...new Set([...idxApp.keys(), ...idxScad.keys()])].filter((d) => d.startsWith(pref)).sort();
+  /** Vista Insieme (nuova): il mese a righe, un giorno per riga con i turni di
+   *  tutti e due affiancati e gli impegni per intero, note comprese. */
+  _htmlRighe() {
+    const turni = this.turniVista();
+    const idxApp = cal.indiceAppuntamenti(this.appVista());
+    const idxScad = cal.indiceScadenze(this.scadVista());
     const oggi = cal.todayIso();
-    const altro = this.altro;
-    const pills = (pid, iso, nome) => cal.turniDelGiorno(turni, pid, iso).map((x) => {
-      const t = cal.tipoDef(turni, pid, x.tipo);
-      return `<span class="ag-pill" style="background:${t.colore};color:${t.testo || "#2b2b2b"}">${nome ? esc(nome) + " · " : ""}${esc(t.nome || x.tipo)}</span>`;
-    }).join("");
-    const nota = (n) => (n ? `<span class="ag-note">${esc(n)}</span>` : "");
-    const modScad = this.io === "nicolo";
+    const io = this.io, altro = this.altro;
+    const modScad = io === "nicolo";
+    const start = this.brush?.start;
+    const colonna = (pid, iso) => `<span class="rg-t">${cal.turniDelGiorno(turni, pid, iso).map((v) => {
+      const t = cal.tipoDef(turni, pid, v.tipo);
+      return `<span style="background:${t.colore};color:${t.testo || "#2b2b2b"}">${esc(t.nome || v.tipo)}</span>`;
+    }).join("")}</span>`;
+    const nota = (n) => (n ? `<span class="rg-note">${esc(n)}</span>` : "");
 
-    let h = `<section class="cal-agenda"><h3>Impegni di ${esc(cal.MESI[this.m - 1].toLowerCase())}</h3>`;
-    if (!giorni.length) h += `<p class="muted small">Nessun impegno questo mese.</p>`;
-    for (const iso of giorni) {
+    let h = this._head(`${cal.MESI[this.m - 1].toUpperCase()} ${this.y}`);
+    h += `<div class="rg-cols"><span></span><span>Tu</span><span>${altro ? esc(this.nome(altro)) : ""}</span><span>Impegni</span></div>`;
+    for (const iso of cal.grigliaMese(this.y, this.m).filter((d) => Number(d.slice(5, 7)) === this.m)) {
+      const wd = cal.weekday(iso);
       const fest = cal.nomeFestivita(iso);
-      h += `<div class="ag-day${iso < oggi ? " passato" : ""}">
-        <button type="button" class="ag-head" data-imp="${iso}">
-          <b>${cal.GIORNI_BREVI[cal.weekday(iso)]} ${Number(iso.slice(8))}</b>${iso === oggi ? `<span class="ag-oggi">oggi</span>` : ""}
-          <span class="ag-pills">${pills(this.io, iso)}${altro ? pills(altro, iso, this.nome(altro)) : ""}</span>
-          ${fest ? `<span class="ag-fest">🎉 ${esc(fest)}</span>` : ""}
-        </button>`;
+      const cls = ["rg"];
+      if (wd === 0 && Number(iso.slice(8)) > 1) cls.push("lun");   // riga spessa tra le settimane
+      if (iso === oggi) cls.push("today");
+      if (fest) cls.push("fest");
+      if (iso === start) cls.push("start");
+      let imp = fest ? `<span class="rg-fest">🎉 ${esc(fest)}</span>` : "";
       for (const a of idxApp.get(iso) || []) {
         const cf = cal.conflittoApp(turni, a);
         const chi = cal.diChi(a);
-        const diChi = chi === "entrambi" ? " 💑" : chi !== this.io ? ` <small>· di ${esc(this.nome(chi))}</small>` : "";
-        h += `<button type="button" class="day-item" data-app="${esc(a.id)}" data-day="${iso}">
-          <span class="day-time">${a.ora ? esc(a.ora) + (a.fine ? `<small>–${esc(a.fine)}</small>` : "") : "<small>tutto il giorno</small>"}</span>
-          <span class="day-what"><b>${esc(a.titolo)}</b>${diChi}${a.luogo ? ` <small>· ${esc(a.luogo)}</small>` : ""}${cf ? `<span class="warn"> ⚠ ${esc(this._testoConflitto(cf, iso))}</span>` : ""}${nota(a.note)}</span></button>`;
+        const diChi = chi === "entrambi" ? " 💑" : chi !== io ? ` <small>· ${esc(this.nome(chi))}</small>` : "";
+        imp += `<span class="rg-it" data-app="${esc(a.id)}" data-day="${iso}">${a.ora ? `<b class="rg-ora">${esc(a.ora)}</b>` : ""}<b>${esc(a.titolo)}</b>${diChi}${a.luogo ? ` <small>· ${esc(a.luogo)}</small>` : ""}${cf ? `<span class="warn"> ⚠ ${esc(this._testoConflitto(cf, iso))}</span>` : ""}${nota(a.note)}</span>`;
       }
       for (const s of idxScad.get(iso) || []) {
-        const apri = modScad ? `button type="button" data-scad="${esc(s.id)}"` : "div";
-        h += `<${apri} class="day-item">
-          <span class="day-time">📌${s.orario_notifica ? " " + esc(s.orario_notifica) : ""}</span>
-          <span class="day-what"><b>${esc(s.titolo)}</b> <small>· ${esc(CATEGORIE[s.categoria] || s.categoria)}</small>${nota(s.note)}</span></${modScad ? "button" : "div"}>`;
+        imp += `<span class="rg-it"${modScad ? ` data-scad="${esc(s.id)}"` : ""}>📌 <b>${esc(s.titolo)}</b> <small>· ${esc(CATEGORIE[s.categoria] || s.categoria)}</small>${nota(s.note)}</span>`;
       }
-      h += `</div>`;
+      h += `<div class="${cls.join(" ")}" data-iso="${iso}">
+        <span class="rg-d"><b>${Number(iso.slice(8))}</b><small>${cal.GIORNI_BREVI[wd]}</small></span>
+        ${colonna(io, iso)}${altro ? colonna(altro, iso) : "<span></span>"}
+        <span class="rg-imp">${imp}</span></div>`;
     }
-    return h + `</section>`;
+    return h;
   }
 
   _ariaGiorno(iso, c) {

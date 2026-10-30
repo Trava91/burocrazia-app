@@ -33,12 +33,13 @@ oggi cerchiato in rosso, bordo spesso sul mese, sotto-schede MESE · ANNO · RIE
   turni grandi sono di chi usa l'app e quelli dell'altro stanno nella fascia sotto. Delle
   scadenze vede solo quelle **Casa / coppia**, in sola lettura (dal 30/10/2026). I commit dal
   suo telefono hanno l'etichetta `app-vale:`.
-- **Vista Insieme leggibile (dal 30/10/2026, richiesta di Valentina):** nei giorni con impegni
-  la casella mostra i titoli (fino a 3, poi "+N") e i due turni scendono in strisce sottili in
-  fondo; sotto griglia e legenda c'è l'elenco **Impegni del mese** giorno per giorno (turni di
-  tutti e due, ora, di chi, luogo, note per intero). Tocco su un impegno = modifica, sul giorno
-  = dettaglio. Le viste singole sono quelle di prima. Anteprima con `?demo=1&persona=insieme`.
-  **Per ora solo nell'app di Nicolò** (la prova prima di darla a Valentina): nuova vista e
+- **Vista Insieme a righe (dal 30/10/2026, richiesta di Valentina):** il mese diventa una
+  tabella, un giorno per riga: data | turno di chi usa l'app ("Tu") | turno dell'altro |
+  impegni con ora, di chi, luogo, ⚠ e note (2 righe), più festività e scadenze. Riga spessa tra
+  le settimane. Tocco su un impegno = modifica, sul resto della riga = dettaglio; il pennello
+  dipinge le righe. Le viste singole restano griglie. Scartata prima un'ibrida (titoli in casella
+  + elenco sotto la griglia): non piaceva. Anteprima con `?demo=1&persona=insieme`.
+  **Per ora solo nell'app di Nicolò** (la prova prima di darla a Valentina): vista a righe e
   scadenze di coppia per lei si accendono aggiungendo `"valentina"` a `INSIEME_NUOVA` in
   `js/cal-ui.js` (e bump del SW).
 - **Stesso token** (scelta di Nicolò): il link d'installazione lo genera la sua app
