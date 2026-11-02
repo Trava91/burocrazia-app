@@ -5,7 +5,16 @@
 // (snapshot) per la lettura offline. Qui si cache-a solo lo "shell" statico.
 // Le scritture offline non sono supportate in v1.
 
-const CACHE = "buro-v18"; // bump a ogni deploy per invalidare lo shell
+const CACHE = "buro-v19"; // bump a ogni deploy per invalidare lo shell
+
+// GitHub Pages dice ai browser di tenere ogni file 10 minuti (max-age=600): senza
+// "no-cache" un deploy poteva non vedersi, o vedersi a metà (file vecchi e nuovi
+// mischiati), per 10 minuti. Con "no-cache" ogni file si ricontrolla col server
+// (se non è cambiato risponde 304, costa pochissimo).
+// (Per l'apertura della pagina i reindirizzamenti restano al browser: redirect "manual".)
+const fresco = (req) => (req.mode === "navigate"
+  ? new Request(req.url, { cache: "no-cache", credentials: "same-origin", redirect: "manual" })
+  : new Request(req, { cache: "no-cache" }));
 
 const SHELL = [
   "./",
@@ -28,7 +37,9 @@ const SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())
+    caches.open(CACHE)
+      .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "no-cache" }))))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -46,11 +57,11 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;        // api.github.com: passa alla rete
 
-  // App shell: NETWORK-FIRST. Online → sempre l'ultima versione (e aggiorna la
-  // cache); offline → fallback alla cache (o allo shell per la navigazione).
-  // Così ogni deploy si vede alla PRIMA ricarica, senza il "ricarica due volte".
+  // App shell: NETWORK-FIRST, ricontrollato col server (vedi `fresco`). Online →
+  // sempre l'ultima versione (e aggiorna la cache); offline → fallback alla cache
+  // (o allo shell per la navigazione).
   event.respondWith(
-    fetch(req)
+    fetch(fresco(req))
       .then((resp) => {
         if (resp.ok) {
           const copy = resp.clone();

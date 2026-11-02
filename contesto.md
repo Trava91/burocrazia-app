@@ -78,6 +78,18 @@ barre per categoria di una sola tinta; tocco su una categoria = movimenti filtra
 - **Anteprima:** `?tab=conti&conti=<file di prova>` (+ `contivista=riepilogo`, `contimese`,
   `contiform=1`). I movimenti di prova vanno **fuori dai repo** (questo è pubblico).
 
+## Aggiornamenti dell'app (dal 02/11/2026)
+
+GitHub Pages fa tenere ai browser ogni file 10 minuti (`max-age=600`): con il service
+worker che passava da quella cache, dopo un deploy il telefono poteva mostrare la versione
+vecchia, o un miscuglio di file vecchi e nuovi, per 10 minuti (probabile causa del "Siete
+pari" del 02/11). Ora `sw.js` chiede ogni file con `cache: "no-cache"` (ricontrolla col
+server, 304 se non è cambiato) e `main.js` ricarica la pagina una volta quando il service
+worker nuovo prende il controllo (non al primo avvio, non con un form aperto); quando l'app
+torna in primo piano chiede anche `registration.update()`. Collaudato in Chrome simulando un
+deploy: pagina ricaricata da sola con i file nuovi. Nota per i collaudi: in Chrome headless
+il profilo sotto `%TEMP%` rompe la CacheStorage; serve un profilo fuori da Temp.
+
 ## Scheda Invia spenta (02/11/2026)
 
 Nicolò non la usava: `TAB_INVIA = false` in `js/ui.js` la toglie dalla barra (e con lei

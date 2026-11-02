@@ -6,7 +6,7 @@ import { UI, showToast, TAB_INVIA } from "./ui.js";
 import { CalendarUI } from "./cal-ui.js";
 import { ContiUI } from "./conti-ui.js";
 
-const APP_VERSION = "1.3.1";
+const APP_VERSION = "1.3.2";
 const PAT_URL = "https://github.com/settings/personal-access-tokens/new";
 
 const $ = (s) => document.querySelector(s);
@@ -94,6 +94,8 @@ document.addEventListener("visibilitychange", () => {
   if (Date.now() - ultimoCaricamento < 30000) return;
   ultimoCaricamento = Date.now();
   store.ricarica().catch(() => { /* resta la vista di prima; il pulsante Riprova è nei Conti */ });
+  // il browser cerca versioni nuove dell'app solo all'apertura: qui anche alla ripresa
+  navigator.serviceWorker?.getRegistration().then((r) => r?.update()).catch(() => {});
 });
 
 // --- impostazioni ----------------------------------------------------------
@@ -161,6 +163,16 @@ function registerSW() {
   if (!("serviceWorker" in navigator)) return;
   // file:// non supporta i SW: registra solo su http(s) (localhost/Pages).
   if (location.protocol === "file:") return;
+  // Versione nuova pubblicata: quando il suo service worker prende il controllo,
+  // ricarica una volta, così si vede subito. Non al primo avvio (prima non c'era un
+  // service worker) e non con un form aperto (si perderebbe quello che stai scrivendo).
+  const avevaSW = Boolean(navigator.serviceWorker.controller);
+  let ricaricata = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!avevaSW || ricaricata || ui.sheetKind) return;
+    ricaricata = true;
+    location.reload();
+  });
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js").catch(() => { /* non bloccante */ });
   });
