@@ -123,7 +123,18 @@
       <ul id="list-spesa" class="list"></ul>
     </section>
 
-    <!-- Pannello Invia (minimale: deep-link a Telegram) -->
+    <!-- Pannello Conti (spese di coppia: lo Splitwise di casa) -->
+    <section id="panel-conti" class="panel conti-panel" data-tab="conti" hidden>
+      <div id="conti-saldo"></div>
+      <nav class="conti-subtabs" role="tablist">
+        <button type="button" data-view="movimenti" class="active">MOVIMENTI</button>
+        <button type="button" data-view="riepilogo">RIEPILOGO</button>
+      </nav>
+      <div id="conti-body"></div>
+    </section>
+
+    <!-- Pannello Invia (minimale: deep-link a Telegram). Spento con TAB_INVIA in ui.js -->
+
     <section id="panel-invia" class="panel" data-tab="invia" hidden>
       <div class="invia-inner">
         <p class="muted">Vocali e foto le elabora il PC via Telegram (trascrizione e visione). Da qui apri il bot e mandale come al solito.</p>
@@ -142,6 +153,7 @@
       <button class="tab" data-tab="scadenze" role="tab"><span>📌</span><small>Scadenze</small></button>
       <button class="tab" data-tab="appunti" role="tab"><span>📝</span><small>Appunti</small></button>
       <button class="tab" data-tab="spesa" role="tab"><span>🛒</span><small>Spesa</small></button>
+      <button class="tab" data-tab="conti" role="tab"><span>💶</span><small>Conti</small></button>
       <button class="tab" data-tab="invia" role="tab"><span>✉️</span><small>Invia</small></button>
     </nav>
   </main>

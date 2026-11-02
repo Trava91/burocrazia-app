@@ -386,13 +386,13 @@ textarea { resize: vertical; min-height: 84px; }
 }
 .cal-btn.on { background: var(--primary); border-color: var(--primary); }
 
-.cal-subtabs { display: flex; border-bottom: 1px solid var(--border); margin: 0 6px 2px; }
-.cal-subtabs button {
+.cal-subtabs, .conti-subtabs { display: flex; border-bottom: 1px solid var(--border); margin: 0 6px 2px; }
+.cal-subtabs button, .conti-subtabs button {
   flex: 1; background: transparent; border: 0; cursor: pointer;
   padding: 8px 0 6px; font-weight: 700; font-size: .95rem; letter-spacing: .03em;
   color: var(--muted); border-bottom: 3px solid transparent;
 }
-.cal-subtabs button.active { color: var(--text); border-bottom-color: var(--primary); }
+.cal-subtabs button.active, .conti-subtabs button.active { color: var(--text); border-bottom-color: var(--primary); }
 
 .cal-head { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 2px; }
 .cal-head h2 { font-size: 1.35rem; font-weight: 800; letter-spacing: .01em; color: var(--text); cursor: pointer; }
@@ -556,3 +556,72 @@ div.day-item { cursor: default; }
 .orari { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 .orari-nome { flex: 0 0 34%; color: var(--text); font-size: .9rem; }
 .orari input { margin: 0; padding: 8px; }
+
+/* ============ Conti (spese di coppia) ============ */
+:root {
+  --conti-bar: #6b8d3e;   /* salvia più satura: passa i controlli del validatore */
+  --conti-pos: #4f7038;   /* l'altro ti deve */
+  --conti-neg: #b4532a;   /* devi tu */
+}
+@media (prefers-color-scheme: dark) {
+  :root { --conti-bar: #77994e; --conti-pos: #a9c98f; --conti-neg: #eba070; }
+}
+.conti-panel { padding: 8px 12px 96px; }
+.saldo-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 14px 16px; margin: 4px 0 12px;
+}
+.saldo-lbl { color: var(--muted); font-size: .9rem; font-weight: 600; }
+.saldo-val { font-size: 3rem; font-weight: 700; line-height: 1.1; color: var(--text); }
+.saldo-card.pos .saldo-val { color: var(--conti-pos); }
+.saldo-card.neg .saldo-val { color: var(--conti-neg); }
+.saldo-card.pari .saldo-val { font-size: 1.6rem; }
+.btn-salda {
+  flex: 0 0 auto; border: 0; border-radius: 999px; padding: 10px 18px; cursor: pointer;
+  background: var(--primary); color: var(--primary-ink); font: inherit; font-weight: 700;
+}
+.conti-head { margin-top: 8px; }
+.conti-head h2::first-letter { text-transform: uppercase; }
+.conti-filtro { display: flex; margin: 0 2px 10px; }
+.conti-filtro button {
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  border-radius: 999px; padding: 6px 12px; font: inherit; font-size: .88rem; cursor: pointer;
+}
+.conti-day {
+  color: var(--muted); font-size: .78rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; margin: 8px 6px -2px;
+}
+.conti-day:first-child { margin-top: 0; }
+.conti-cat { font-size: 1.35rem; flex: 0 0 auto; width: 1.6em; text-align: center; }
+.conti-amt { flex: 0 0 auto; text-align: right; }
+.conti-tot { font-weight: 700; white-space: nowrap; }
+.conti-eff { font-size: .82rem; font-weight: 600; margin-top: 2px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.conti-eff.pos { color: var(--conti-pos); }
+.conti-eff.neg { color: var(--conti-neg); }
+.in-importo { font-size: 1.6rem !important; font-weight: 700; }
+.seg-full { display: flex; margin-top: 6px; }
+.seg-full label { flex: 1; justify-content: center; padding: 11px 6px; text-align: center; }
+.conti-guess { margin: -4px 2px 0; color: var(--text); }
+
+/* riepilogo: riquadri e barre per categoria (una tinta, la più grande in alto) */
+.kpi-row { display: flex; gap: 10px; margin: 0 0 12px; }
+.kpi { flex: 1; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px 14px; }
+.kpi-lbl { color: var(--muted); font-size: .82rem; font-weight: 600; }
+.kpi-val { font-size: 1.45rem; font-weight: 700; margin-top: 2px; white-space: nowrap; }
+.kpi-sub { color: var(--muted); font-size: .8rem; margin-top: 2px; }
+.conti-panel .riep-card { margin: 0 0 12px; }
+.cbar-list { list-style: none; margin: 0; padding: 0; }
+.cbar {
+  display: block; width: 100%; text-align: left; background: transparent; border: 0; cursor: pointer;
+  font: inherit; color: var(--text); padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.cbar-list li:last-child .cbar { border-bottom: 0; }
+.cbar-top { display: flex; justify-content: space-between; gap: 8px; font-size: .95rem; }
+.cbar-nome { font-weight: 600; }
+.cbar-val { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cbar-track { display: block; height: 10px; margin: 6px 0 4px; }
+.cbar-fill { display: block; height: 100%; background: var(--conti-bar); border-radius: 0 4px 4px 0; min-width: 2px; }
+.cbar.senza .cbar-fill { background: var(--muted); }
+.cbar-sub { display: block; color: var(--muted); font-size: .8rem; }
+.cbar:active .cbar-fill, .cbar:focus-visible .cbar-fill { filter: brightness(1.12); }

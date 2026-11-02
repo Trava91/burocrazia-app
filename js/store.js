@@ -1,4 +1,4 @@
-// store.js — stato in memoria dei 5 file (3 liste + turni + agenda) e
+// store.js — stato in memoria dei file (3 liste + turni + agenda + conti) e
 // coreografia letture/scritture.
 //
 // Tutte le mutazioni passano da `mutate`: applicazione OPTIMISTIC (la UI cambia
@@ -10,6 +10,7 @@
 import { GitHubApi, ApiError } from "./api.js";
 import * as model from "./model.js";
 import * as cal from "./calendario.js";
+import * as conti from "./conti.js";
 
 const LS = {
   token: "buro.token",
@@ -36,10 +37,12 @@ const FILES = {
   spesa: { path: "lista-spesa.json", key: "voci" },
   turni: { path: "turni.json", key: "persone" },
   agenda: { path: "agenda.json", key: "appuntamenti" },
+  conti: { path: "conti.json", key: "movimenti" },
+  categorie: { path: "categorie-conti.json", key: "categorie" }, // sola lettura: lo aggiorna il PC
 };
-// File del calendario: se mancano (404) l'app parte lo stesso, senza calendario.
-const OPTIONAL = new Set(["turni", "agenda"]);
-const EMPTY = { agenda: { appuntamenti: [] } };
+// File del calendario e dei conti: se mancano (404) l'app parte lo stesso.
+const OPTIONAL = new Set(["turni", "agenda", "conti", "categorie"]);
+const EMPTY = { agenda: { appuntamenti: [] }, conti: { movimenti: [] } };
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const vuoto = () => Object.fromEntries(Object.keys(FILES).map((k) => [k, null]));
@@ -373,6 +376,32 @@ export class Store {
   eliminaAppuntamento(id) {
     return this.mutate("agenda", (arr) => (arr || []).filter((a) => a.id !== id),
       `app: elimina appuntamento ${id}`);
+  }
+
+  // --- conti di coppia (spese divise) --------------------------------------
+  movimenti() { return this.list("conti"); }
+  dizConti() { return this.data.categorie; }
+  findMovimento(id) { return this.movimenti().find((m) => m.id === id); }
+
+  aggiungiMovimento(campi) {
+    // creato una volta sola: se c'è un conflitto si riaggiunge lo stesso (stesso id)
+    const m = conti.nuovoMovimento(campi);
+    return this.mutate("conti",
+      (arr) => ((arr || []).some((x) => x.id === m.id) ? arr : [...(arr || []), m]),
+      `app: conti + ${m.titolo} ${conti.fmtEuro(m.importo_cent)}`);
+  }
+
+  modificaMovimento(id, campi) {
+    return this.mutate("conti",
+      (arr) => (arr || []).map((m) => (m.id === id ? { ...m, ...campi } : m)),
+      `app: conti modifica ${campi.titolo ?? id}`);
+  }
+
+  eliminaMovimento(id) {
+    const m = this.findMovimento(id);
+    return this.mutate("conti",
+      (arr) => (arr || []).filter((x) => x.id !== id),
+      `app: conti elimina ${m ? m.titolo : id}`);
   }
 
   // --- deep-link Telegram --------------------------------------------------

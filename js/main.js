@@ -2,10 +2,11 @@
 
 import { Store, PROFILI } from "./store.js";
 import { GitHubApi } from "./api.js";
-import { UI, showToast } from "./ui.js";
+import { UI, showToast, TAB_INVIA } from "./ui.js";
 import { CalendarUI } from "./cal-ui.js";
+import { ContiUI } from "./conti-ui.js";
 
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 const PAT_URL = "https://github.com/settings/personal-access-tokens/new";
 
 const $ = (s) => document.querySelector(s);
@@ -14,6 +15,8 @@ const store = new Store();
 const ui = new UI(store);
 const calUI = new CalendarUI(store, ui);
 ui.cal = calUI;
+const contiUI = new ContiUI(store, ui);
+ui.conti = contiUI;
 store.onChange(() => ui.renderAll());
 
 // --- schermate -------------------------------------------------------------
@@ -86,7 +89,7 @@ function openSettings() {
   $("#set-profilo").value = store.profilo;
   const nico = store.profilo === "nicolo";
   $("#set-invito-box").hidden = !nico;
-  $("#set-bot-box").hidden = !nico;
+  $("#set-bot-box").hidden = !nico || !TAB_INVIA; // il bot serve solo alla scheda Invia
   $("#set-version").textContent = APP_VERSION;
   $("#set-bot").value = store.bot || "";
   const ls = store.lastSync
@@ -177,6 +180,7 @@ function main() {
   $("#onboarding-form").addEventListener("submit", onOnboardingSubmit);
   wireSettings();
   calUI.init();
+  contiUI.init();
   ui.init();
   registerSW();
 

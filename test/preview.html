@@ -17,7 +17,9 @@
     → http://localhost:8765/app/test/preview.html
   Parametri: ?vista=mese|anno|riepilogo  &persona=nicolo|valentina|insieme  &profilo=valentina
              &giorno=YYYY-MM-DD (apre il dettaglio)  &mese=YYYY-MM  &tab=scadenze…
-  Dati: ../../scadenzario/{scadenzario,memoria,lista-spesa,turni,agenda}.json
+             Conti: &tab=conti  &conti=<percorso di un conti.json di prova>  &contivista=riepilogo
+             &contimese=YYYY-MM  &contiform=1 (form nuova spesa)  &contititolo=… (titolo nel form)
+  Dati: ../../scadenzario/{scadenzario,memoria,lista-spesa,turni,agenda,conti,categorie-conti}.json
   più le note di Shifter dello screenshot se agenda.json è ancora vuota.
   Fuori dallo shell del service worker: non finisce nell'app installata.
 -->
@@ -39,6 +41,8 @@
   import { Store } from "../js/store.js";
   import { UI } from "../js/ui.js";
   import { CalendarUI } from "../js/cal-ui.js";
+  import { ContiUI } from "../js/conti-ui.js";
+  import { ApiError as ApiErr } from "../js/api.js";
 
   // 1. markup dell'app: preso da index.html, così l'anteprima non diverge
   const html = await (await fetch("../index.html")).text();
@@ -49,10 +53,14 @@
   // 2. dati locali + finto client GitHub in memoria
   const base = "../../scadenzario/";
   const files = {};
-  for (const f of ["scadenzario.json", "memoria.json", "lista-spesa.json", "turni.json", "agenda.json"]) {
+  for (const f of ["scadenzario.json", "memoria.json", "lista-spesa.json", "turni.json", "agenda.json",
+                   "conti.json", "categorie-conti.json"]) {
     const r = await fetch(base + f);
     files[f] = r.ok ? await r.json() : null;
   }
+  // ?conti=<percorso> → movimenti di prova (tenerli FUORI dai repo: questo è pubblico)
+  const contiDemo = new URLSearchParams(location.search).get("conti");
+  if (contiDemo) files["conti.json"] = await (await fetch(contiDemo)).json();
   if (files["agenda.json"] && !files["agenda.json"].appuntamenti.length) {
     files["agenda.json"].appuntamenti = [
       { id: "visita-medica", titolo: "Visita medica", data: "2026-10-08", ora: "16:45", avviso_min: 60 },
@@ -75,7 +83,7 @@
   let n = 0;
   const fakeApi = {
     async getFile(path) {
-      if (!files[path]) { const e = new Error("404"); e.kind = "notfound"; throw e; }
+      if (!files[path]) throw new ApiErr("Repo o file non trovato.", { status: 404, kind: "notfound" });
       return { data: JSON.parse(JSON.stringify(files[path])), sha: "s" + n };
     },
     async putFile(path, data, sha, msg) { files[path] = data; n++; window.__ultimoCommit = msg; return "s" + n; },
@@ -89,6 +97,8 @@
   const ui = new UI(store);
   const calUI = new CalendarUI(store, ui);
   ui.cal = calUI;
+  const contiUI = new ContiUI(store, ui);
+  ui.conti = contiUI;
   store.onChange(() => ui.renderAll());
 
   const q = new URLSearchParams(location.search);
@@ -96,15 +106,24 @@
   if (q.get("vista")) calUI.view = q.get("vista");
   if (q.get("mese")) { calUI.y = +q.get("mese").slice(0, 4); calUI.m = +q.get("mese").slice(5, 7); }
   if (q.get("tab")) ui.tab = q.get("tab");
+  if (q.get("contivista")) contiUI.view = q.get("contivista");
+  if (q.get("contimese")) { contiUI.y = +q.get("contimese").slice(0, 4); contiUI.m = +q.get("contimese").slice(5, 7); }
 
   calUI.init();
+  contiUI.init();
   ui.init();
   document.getElementById("app").hidden = false;
   await store.load();
   if (q.get("giorno")) calUI.apriDettaglio(q.get("giorno"));
   if (q.get("pennello")) { calUI.startBrush(); calUI.brush.periodo = true; calUI.render(); }
   if (q.get("form")) calUI.apriFormAppuntamento(null, q.get("form"));
-  window.__store = store; window.__cal = calUI;
+  if (q.get("contiform")) {
+    contiUI.apriForm();
+    const f = document.getElementById("sheet-form");
+    if (q.get("contititolo")) { f.elements.titolo.value = q.get("contititolo"); f.elements.importo.value = "24,90"; }
+    f.dispatchEvent(new Event("input"));
+  }
+  window.__store = store; window.__cal = calUI; window.__conti = contiUI;
 
   // ?prova=1 → collaudo dello store sul finto GitHub (fila, conflitto, rollback).
   // Risultati in <pre id="prova"> e nel titolo; leggibili con chrome --dump-dom.
@@ -176,6 +195,35 @@
     ok("scadenze: aggiunta", F("scadenzario.json").scadenze.length === prima + 1);
     await store.eliminaScadenza("prova-scadenza");
     ok("scadenze: eliminata", F("scadenzario.json").scadenze.length === prima);
+
+    // conti di coppia: spesa, modifica, conflitto con l'altro telefono, eliminazione
+    const { saldo: saldoDi } = await import("../js/conti.js");
+    const s0 = saldoDi(store.movimenti(), "nicolo");
+    await store.aggiungiMovimento({ titolo: "Gatti", importo_cent: 2020, pagato_da: "nicolo", divisione: "meta",
+      data: "2026-11-02", categoria: "animali", categoria_auto: true });
+    const mg = F("conti.json").movimenti.find((x) => x.titolo === "Gatti" && x.importo_cent === 2020);
+    ok("conti: spesa salvata con id e categoria", Boolean(mg?.id?.startsWith("m-")) && mg.categoria === "animali");
+    ok("conti: saldo +10,10", saldoDi(store.movimenti(), "nicolo") === s0 + 1010);
+    await store.modificaMovimento(mg.id, { divisione: "tutto" });
+    ok("conti: modifica (tutta per l'altra)", saldoDi(store.movimenti(), "nicolo") === s0 + 2020);
+    let colpoC = true;
+    fakeApi.putFile = async (path, data, sha, msg) => {
+      if (colpoC && path === "conti.json") {
+        colpoC = false;
+        files["conti.json"].movimenti.push({ id: "dal-telefono-di-vale", data: "2026-11-02", titolo: "Pane", importo_cent: 300,
+          pagato_da: "valentina", divisione: "meta", categoria: "spesa", categoria_auto: true });
+        throw new ApiError("conflitto", { status: 409, conflict: true, kind: "conflict" });
+      }
+      return realPut(path, data, sha, msg);
+    };
+    await store.aggiungiMovimento({ titolo: "Pizza", importo_cent: 3000, pagato_da: "nicolo", divisione: "meta", data: "2026-11-02" });
+    ok("conti: conflitto, tiene la spesa dell'altro telefono e la mia",
+      F("conti.json").movimenti.some((x) => x.id === "dal-telefono-di-vale") && F("conti.json").movimenti.some((x) => x.titolo === "Pizza"));
+    fakeApi.putFile = realPut;
+    await store.eliminaMovimento(mg.id);
+    ok("conti: eliminata", !F("conti.json").movimenti.some((x) => x.id === mg.id));
+    ok("scheda Conti accesa, Invia spenta",
+      !document.querySelector('.tab[data-tab="conti"]').hidden && document.querySelector('.tab[data-tab="invia"]').hidden);
 
     const atteso = store.profilo === "valentina" ? "app-vale:" : "app:";
     ok(`commit con l'etichetta ${atteso}`, String(window.__ultimoCommit).startsWith(atteso));

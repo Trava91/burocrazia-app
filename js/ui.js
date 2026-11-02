@@ -5,6 +5,11 @@ import { CATEGORIE, RICORRENZA_MESI, PRIORITA_EMOJI, fmtGiorni, parseISODate } f
 
 const $ = (sel) => document.querySelector(sel);
 
+// Scheda "Invia" (link al bot per mandare vocali e foto): spenta il 02/11/2026,
+// Nicolò non la usava. Pannello, link e impostazione del bot restano nel codice:
+// per rimetterla basta true.
+export const TAB_INVIA = false;
+
 // Data leggibile in italiano: "domenica 12 luglio 2026". null → testo neutro.
 function fmtDataEstesa(iso) {
   const p = parseISODate(iso);
@@ -52,6 +57,7 @@ export class UI {
     this.includeTutte = false;
     this.openRow = null; // riga con lo swipe aperto (per chiuderla)
     this.cal = null;     // CalendarUI, collegata da main.js
+    this.conti = null;   // ContiUI, collegata da main.js
     this.sheetKind = null; // "form" | "giorno" | null (sheet chiuso)
   }
 
@@ -72,6 +78,7 @@ export class UI {
       else if (this.tab === "scadenze") this.openScadenzaForm();
       else if (this.tab === "appunti") this.openAppuntoForm();
       else if (this.tab === "spesa") this.openSpesaForm();
+      else if (this.tab === "conti") this.conti?.apriForm();
     });
 
     // Sheet
@@ -96,11 +103,11 @@ export class UI {
   }
 
   // --- tab -----------------------------------------------------------------
-  // Schede del profilo: Valentina ha solo calendario e spesa.
+  // Schede del profilo: Valentina ha calendario, spesa e conti.
   tabsConsentite() {
     return this.store.profilo === "valentina"
-      ? ["calendario", "spesa"]
-      : ["calendario", "scadenze", "appunti", "spesa", "invia"];
+      ? ["calendario", "spesa", "conti"]
+      : ["calendario", "scadenze", "appunti", "spesa", "conti", ...(TAB_INVIA ? ["invia"] : [])];
   }
 
   applicaProfilo() {
@@ -114,11 +121,11 @@ export class UI {
     this.tab = tab;
     document.querySelectorAll(".tab").forEach((b) =>
       b.classList.toggle("active", b.dataset.tab === tab));
-    for (const name of ["calendario", "scadenze", "appunti", "spesa", "invia"]) {
+    for (const name of ["calendario", "scadenze", "appunti", "spesa", "conti", "invia"]) {
       $(`#panel-${name}`).hidden = name !== tab;
     }
     $("#fab").hidden = tab === "invia";
-    const titoli = { calendario: "Calendario", scadenze: "Scadenze", appunti: "Appunti", spesa: "Spesa", invia: "Invia" };
+    const titoli = { calendario: "Calendario", scadenze: "Scadenze", appunti: "Appunti", spesa: "Spesa", conti: "Conti", invia: "Invia" };
     $("#header-title").textContent = titoli[tab] || "Burocrazia";
     this.closeOpenRow();
   }
@@ -129,6 +136,7 @@ export class UI {
     this.renderAppunti();
     this.renderSpesa();
     this.cal?.render();
+    this.conti?.render();
     this.renderSync();
   }
 

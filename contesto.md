@@ -3,8 +3,8 @@
 ## Cos'è
 
 `03-burocrazia/app/` è una **PWA** (web app installabile sul telefono) che gestisce le
-tre liste burocrazia — **scadenze, appunti, spesa** — e il **calendario** (turni +
-appuntamenti), parlando **direttamente** con l'API GitHub del repo `Trava91/scadenzario`,
+tre liste burocrazia — **scadenze, appunti, spesa** — il **calendario** (turni +
+appuntamenti) e i **conti di coppia** (spese divise con Valentina), parlando **direttamente** con l'API GitHub del repo `Trava91/scadenzario`,
 la stessa fonte di verità usata da Telegram e dalla skill `/burocrazia`. Niente backend,
 niente build: solo HTML/CSS/JS statici serviti da **GitHub Pages**, più chiamate all'API
 GitHub dal browser.
@@ -28,7 +28,7 @@ oggi cerchiato in rosso, bordo spesso sul mese, sotto-schede MESE · ANNO · RIE
   `http://localhost:8765/app/test/preview.html` (dati locali, finto GitHub in memoria;
   `?prova=1` collauda lo store, `?immagine=1` mostra l'immagine da condividere).
 - **Profilo Valentina (dal 15/10/2026):** stessa app, profilo salvato nel telefono
-  (`buro.profilo`). Solo schede **Calendario** e **Spesa**, si installa come "Calendario"
+  (`buro.profilo`). Solo schede **Calendario**, **Spesa** e **Conti**, si installa come "Calendario"
   (`manifest-vale.webmanifest`, scelto da uno script in `<head>`). Nella vista **Insieme** i
   turni grandi sono di chi usa l'app e quelli dell'altro stanno nella fascia sotto. Delle
   scadenze vede solo quelle **Casa / coppia**, in sola lettura (dal 30/10/2026). I commit dal
@@ -48,6 +48,31 @@ oggi cerchiato in rosso, bordo spesso sul mese, sotto-schede MESE · ANNO · RIE
   quelli di coppia; Insieme li mostra tutti. Il ⚠ guarda il turno di chi ci va
   (di coppia = di tutti e due). Avvisi Telegram per lei: da decidere dopo la prova.
 
+## Conti di coppia (costruita il 02/11/2026)
+
+Scheda **💶 Conti**, in tutti e due i profili: il nostro Splitwise. Saldo in alto (hero, con
+**Salda**), sotto-schede **MOVIMENTI** (spese del mese per giorno; tocco = modifica, swipe =
+modifica/elimina con 4 s per annullare) e **RIEPILOGO** (spese comuni e "la tua parte",
+barre per categoria di una sola tinta; tocco su una categoria = movimenti filtrati).
+- **Dati:** `conti.json` (movimenti: `importo_cent` intero, `pagato_da`, `divisione`
+  meta|tutto, `categoria`, `categoria_auto`) e `categorie-conti.json` (categorie + parole,
+  **sola lettura per l'app**: lo arricchisce `/burocrazia`). Logica pura in `js/conti.js`
+  (porting di `conti.py`), DOM in `js/conti-ui.js`.
+- **Regola del saldo:** chi non ha pagato deve metà (per difetto al centesimo) o tutto.
+  Ricalcolato con questa regola lo storico di Splitwise: torna a meno di un centesimo
+  (sui dispari Splitwise assegna il centesimo a caso). Niente cifre qui: il repo è pubblico.
+- **Categorie:** col form su "Automatica" la categoria arriva dal titolo (storico, poi parole:
+  79% delle spese dell'ultimo anno riconosciute già all'inizio). Il resto resta `null` e lo
+  classifica il PC con `/burocrazia`, che insegna le parole nuove. "Soldi tra voi"
+  (`trasferimento: true`) = prestiti, rimborsi e saldi: contano per il saldo, non tra le spese.
+- **Anteprima:** `?tab=conti&conti=<file di prova>` (+ `contivista=riepilogo`, `contimese`,
+  `contiform=1`). I movimenti di prova vanno **fuori dai repo** (questo è pubblico).
+
+## Scheda Invia spenta (02/11/2026)
+
+Nicolò non la usava: `TAB_INVIA = false` in `js/ui.js` la toglie dalla barra (e con lei
+l'impostazione del bot). Pannello, link e codice restano: per rimetterla basta `true`.
+
 È un **repo Git separato e pubblico** (`Trava91/burocrazia-app`): il sorgente non
 contiene segreti (il PAT lo inserisce l'utente a runtime, resta in `localStorage`).
 
@@ -58,7 +83,7 @@ contiene segreti (il PAT lo inserisce l'utente a runtime, resta in `localStorage
   orario** (niente latenza ≤1h).
 - **Telegram = cassetta postale + campanello.** Cattura *grezza* — **vocali e foto**
   (le elabora il PC con whisper/visione) — e **avvisi push** (solo Telegram può "suonare"
-  il telefono senza un server). La tab "Invia" dell'app è minimale: solo deep-link al bot.
+  il telefono senza un server). La tab "Invia" (solo deep-link al bot) è spenta dal 02/11/2026.
 
 L'app tiene **solo il PAT GitHub**, non il token Telegram (un segreto in meno sul telefono).
 
@@ -70,9 +95,11 @@ delle ricorrenze, slug degli id, formato giorni, schema completo delle voci. Il 
 linguaggio naturale, la trascrizione e la visione **restano** su Telegram/PC.
 
 > **Se cambia un campo dei JSON, va aggiornato su ENTRAMBI i lati**: i motori Python
-> *e* `js/model.js` (scadenze, appunti, spesa) o `js/calendario.js` (`turni.json`,
-> `agenda.json`). Lo schema condiviso è ciò che tiene insieme i due front-end.
-> `scadenzario/test_calendario.py` confronta Python e JS su turni, festività e conflitti.
+> *e* `js/model.js` (scadenze, appunti, spesa), `js/calendario.js` (`turni.json`,
+> `agenda.json`) o `js/conti.js` (`conti.json`, `categorie-conti.json`). Lo schema condiviso
+> è ciò che tiene insieme i due front-end. `scadenzario/test_calendario.py` confronta Python
+> e JS su turni, festività e conflitti; `scadenzario/test_conti.py` su importi, saldo,
+> categorie e riepilogo.
 
 ## Conflitti di scrittura (app ↔ cron)
 
