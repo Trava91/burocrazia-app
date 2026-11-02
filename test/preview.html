@@ -61,6 +61,8 @@
   // ?conti=<percorso> → movimenti di prova (tenerli FUORI dai repo: questo è pubblico)
   const contiDemo = new URLSearchParams(location.search).get("conti");
   if (contiDemo) files["conti.json"] = await (await fetch(contiDemo)).json();
+  // ?contivuoto=1 → conti.json che non arriva (deve dire "non caricati", mai "pari")
+  if (new URLSearchParams(location.search).get("contivuoto")) files["conti.json"] = null;
   if (files["agenda.json"] && !files["agenda.json"].appuntamenti.length) {
     files["agenda.json"].appuntamenti = [
       { id: "visita-medica", titolo: "Visita medica", data: "2026-10-08", ora: "16:45", avviso_min: 60 },
@@ -121,6 +123,7 @@
     contiUI.apriForm();
     const f = document.getElementById("sheet-form");
     if (q.get("contititolo")) { f.elements.titolo.value = q.get("contititolo"); f.elements.importo.value = "24,90"; }
+    if (q.get("contiquota")) f.querySelector(`input[name="quota"][value="${q.get("contiquota")}"]`).checked = true;
     f.dispatchEvent(new Event("input"));
   }
   window.__store = store; window.__cal = calUI; window.__conti = contiUI;
@@ -199,9 +202,9 @@
     // conti di coppia: spesa, modifica, conflitto con l'altro telefono, eliminazione
     const { saldo: saldoDi } = await import("../js/conti.js");
     const s0 = saldoDi(store.movimenti(), "nicolo");
-    await store.aggiungiMovimento({ titolo: "Gatti", importo_cent: 2020, pagato_da: "nicolo", divisione: "meta",
+    await store.aggiungiMovimento({ titolo: "Gatti di prova", importo_cent: 2020, pagato_da: "nicolo", divisione: "meta",
       data: "2026-11-02", categoria: "animali", categoria_auto: true });
-    const mg = F("conti.json").movimenti.find((x) => x.titolo === "Gatti" && x.importo_cent === 2020);
+    const mg = F("conti.json").movimenti.find((x) => x.titolo === "Gatti di prova");
     ok("conti: spesa salvata con id e categoria", Boolean(mg?.id?.startsWith("m-")) && mg.categoria === "animali");
     ok("conti: saldo +10,10", saldoDi(store.movimenti(), "nicolo") === s0 + 1010);
     await store.modificaMovimento(mg.id, { divisione: "tutto" });
@@ -222,6 +225,10 @@
     fakeApi.putFile = realPut;
     await store.eliminaMovimento(mg.id);
     ok("conti: eliminata", !F("conti.json").movimenti.some((x) => x.id === mg.id));
+    const s1 = saldoDi(store.movimenti(), "nicolo");
+    await store.aggiungiMovimento({ titolo: "Borsa", importo_cent: 4500, pagato_da: "valentina", divisione: "nessuna", data: "2026-11-02" });
+    ok("conti: spesa tutta di chi paga, saldo invariato",
+      F("conti.json").movimenti.some((x) => x.titolo === "Borsa" && x.divisione === "nessuna") && saldoDi(store.movimenti(), "nicolo") === s1);
     ok("scheda Conti accesa, Invia spenta",
       !document.querySelector('.tab[data-tab="conti"]').hidden && document.querySelector('.tab[data-tab="invia"]').hidden);
 

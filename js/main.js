@@ -6,7 +6,7 @@ import { UI, showToast, TAB_INVIA } from "./ui.js";
 import { CalendarUI } from "./cal-ui.js";
 import { ContiUI } from "./conti-ui.js";
 
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.3.1";
 const PAT_URL = "https://github.com/settings/personal-access-tokens/new";
 
 const $ = (s) => document.querySelector(s);
@@ -68,10 +68,13 @@ async function onOnboardingSubmit(e) {
 }
 
 // --- app -------------------------------------------------------------------
+let ultimoCaricamento = 0;
+
 async function bootApp() {
   show("app");
   ui.refreshInviaLinks();
   $("#spinner").hidden = false;
+  ultimoCaricamento = Date.now();
   try {
     await store.load();
   } catch (err) {
@@ -82,6 +85,16 @@ async function bootApp() {
     $("#spinner").hidden = true;
   }
 }
+
+// App riaperta dal telefono (era in background): ricarica i dati, al massimo
+// ogni 30 secondi. Prima i dati si leggevano solo all'avvio, quindi le spese
+// segnate dall'altro telefono non si vedevano fino a una chiusura completa.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !store.hasToken() || $("#app").hidden) return;
+  if (Date.now() - ultimoCaricamento < 30000) return;
+  ultimoCaricamento = Date.now();
+  store.ricarica().catch(() => { /* resta la vista di prima; il pulsante Riprova è nei Conti */ });
+});
 
 // --- impostazioni ----------------------------------------------------------
 function openSettings() {

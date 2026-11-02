@@ -55,10 +55,20 @@ Scheda **💶 Conti**, in tutti e due i profili: il nostro Splitwise. Saldo in a
 modifica/elimina con 4 s per annullare) e **RIEPILOGO** (spese comuni e "la tua parte",
 barre per categoria di una sola tinta; tocco su una categoria = movimenti filtrati).
 - **Dati:** `conti.json` (movimenti: `importo_cent` intero, `pagato_da`, `divisione`
-  meta|tutto, `categoria`, `categoria_auto`) e `categorie-conti.json` (categorie + parole,
-  **sola lettura per l'app**: lo arricchisce `/burocrazia`). Logica pura in `js/conti.js`
-  (porting di `conti.py`), DOM in `js/conti-ui.js`.
-- **Regola del saldo:** chi non ha pagato deve metà (per difetto al centesimo) o tutto.
+  meta|tutto|nessuna, `categoria`, `categoria_auto`, `apertura` sul saldo riportato) e
+  `categorie-conti.json` (categorie + parole, **sola lettura per l'app**: lo arricchisce
+  `/burocrazia`). Logica pura in `js/conti.js` (porting di `conti.py`), DOM in `js/conti-ui.js`.
+- **Form:** "Chi ha pagato" (Io / l'altro) + "Di chi è la spesa" (A metà / Tutta mia / Tutta
+  di …), tradotti in `divisione` da `conti.divisioneDa` (tutta di chi paga = `nessuna`: resta
+  nei conti del mese ma non sposta il saldo; richiesta di Nicolò del 02/11, "a volte segno io
+  le sue spese"). I soldi tra voi (Salda, prestiti) hanno il form ridotto "Chi dà i soldi".
+- **Storico:** ottobre 2026 importato da Splitwise (`fonte: splitwise`) col saldo d'apertura
+  al 30/09; i mesi prima restano nell'export di Splitwise.
+- **Dati freschi:** quando l'app torna in primo piano ricarica tutto (al massimo ogni 30 s,
+  mai con scritture in fila). Se `conti.json` non arriva la scheda dice "Conti non caricati"
+  con **Riprova**, mai "Siete pari" (il 02/11 il telefono di Nicolò mostrava "pari" pur con
+  il file giusto su GitHub: caricamento non riuscito, e prima non si ricaricava mai).
+- **Regola del saldo:** chi non ha pagato deve metà (per difetto al centesimo), tutto o niente.
   Ricalcolato con questa regola lo storico di Splitwise: torna a meno di un centesimo
   (sui dispari Splitwise assegna il centesimo a caso). Niente cifre qui: il repo è pubblico.
 - **Categorie:** col form su "Automatica" la categoria arriva dal titolo (storico, poi parole:

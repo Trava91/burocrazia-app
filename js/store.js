@@ -137,6 +137,14 @@ export class Store {
     }
   }
 
+  /** Ricarica tutto da GitHub (app tornata in primo piano, pulsante Riprova): così
+   *  si vede quello che ha scritto l'altro telefono. Mai con scritture in fila:
+   *  lo stato confermato lo rimettono loro quando finiscono. */
+  async ricarica() {
+    if (Object.values(this._pending).some((n) => n > 0)) return false;
+    return this.load();
+  }
+
   _markSync() {
     this.lastSync = new Date().toISOString();
     localStorage.setItem(LS.lastSync, this.lastSync);

@@ -7,7 +7,8 @@
 // Importi sempre in centesimi interi: niente virgola mobile nei conti.
 
 export const PERSONE = { nicolo: "Nicolò", valentina: "Valentina" };
-export const DIVISIONI = ["meta", "tutto"];
+// meta = a metà · tutto = tutta a carico dell'altro · nessuna = tutta di chi paga (non sposta il saldo)
+export const DIVISIONI = ["meta", "tutto", "nessuna"];
 
 const has = (o, k) => o != null && k != null && Object.prototype.hasOwnProperty.call(o, k);
 
@@ -39,10 +40,25 @@ export function fmtEuro(cent) {
 // --- regole del saldo --------------------------------------------------------
 export const altro = (pid) => (pid === "nicolo" ? "valentina" : "nicolo");
 
-/** Quanto deve a chi ha pagato l'altra persona: metà (per difetto) o tutto. */
+/** Quanto deve a chi ha pagato l'altra persona: metà (per difetto), tutto o niente. */
 export function debito(m) {
   const a = Math.trunc(m.importo_cent);
-  return m.divisione === "tutto" ? a : Math.floor(a / 2);
+  if (m.divisione === "tutto") return a;
+  if (m.divisione === "nessuna") return 0;
+  return Math.floor(a / 2);
+}
+
+/** Di chi è la spesa: "meta" oppure la persona che se la tiene tutta. */
+export function diChi(m) {
+  if (m.divisione === "tutto") return altro(m.pagato_da);
+  if (m.divisione === "nessuna") return m.pagato_da;
+  return "meta";
+}
+
+/** Da "di chi è" + "chi ha pagato" alla divisione salvata nel JSON. */
+export function divisioneDa(quota, pagatoDa) {
+  if (quota === "meta") return "meta";
+  return quota === pagatoDa ? "nessuna" : "tutto";
 }
 
 /** La parte della spesa a carico di pid. */

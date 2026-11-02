@@ -43,7 +43,10 @@ export class ContiUI {
     document.querySelectorAll(".conti-subtabs button").forEach((b) =>
       b.addEventListener("click", () => { this.view = b.dataset.view; this.render(); }));
     $("#conti-body").addEventListener("click", (e) => this._onClick(e));
-    $("#conti-saldo").addEventListener("click", (e) => { if (e.target.closest("[data-salda]")) this.salda(); });
+    $("#conti-saldo").addEventListener("click", (e) => {
+      if (e.target.closest("[data-salda]")) this.salda();
+      if (e.target.closest("[data-ricarica]")) this.ui.run(this.store.ricarica());
+    });
   }
 
   _onClick(e) {
@@ -79,6 +82,14 @@ export class ContiUI {
   }
 
   _renderSaldo() {
+    // conti.json non arrivato (rete instabile, copia offline vecchia): mai dire "pari" a vuoto
+    if (!this.store.data.conti) {
+      $("#conti-saldo").innerHTML = `<div class="saldo-card">
+          <div><div class="saldo-lbl">Conti non caricati</div><div class="saldo-note">${this.store.offline ? "Sei offline." : "Non sono arrivati da GitHub."}</div></div>
+          <button type="button" class="btn-salda" data-ricarica>Riprova</button>
+        </div>`;
+      return;
+    }
     const s = conti.saldo(this.store.movimenti(), this.io);
     const altro = this.nome(this.altro);
     const [cls, testo] = s > 0 ? ["pos", `${altro} ti deve`] : s < 0 ? ["neg", `Devi a ${altro}`] : ["pari", "Siete pari"];
@@ -139,16 +150,23 @@ export class ContiUI {
     const io = this.io;
     const eff = conti.effetto(m, io);
     let sub;
-    if (m.fonte === "splitwise") {
+    if (m.apertura) {
       sub = "Riportato da Splitwise";
     } else if (c.trasferimento) {
       sub = m.pagato_da === io ? `Hai dato a ${this.nome(this.altro)}` : `${this.nome(m.pagato_da)} ti ha dato`;
     } else {
       const chi = m.pagato_da === io ? "Pagata da te" : `Pagata da ${this.nome(m.pagato_da)}`;
-      const div = m.divisione !== "tutto" ? "a metà" : m.pagato_da === io ? `tutta per ${this.nome(this.altro)}` : "tutta per te";
-      sub = `${chi} · ${div}`;
+      const dichi = conti.diChi(m);
+      const di = dichi === "meta" ? "a metà"
+        : dichi === io ? "tutta tua"
+        : dichi === m.pagato_da ? "tutta sua" : `tutta di ${this.nome(dichi)}`;
+      sub = `${chi} · ${di}`;
     }
-    const spiega = eff >= 0 ? `${this.nome(this.altro)} ti deve ${fmt(eff)}` : `devi ${fmt(-eff)} a ${this.nome(this.altro)}`;
+    const spiega = eff > 0 ? `${this.nome(this.altro)} ti deve ${fmt(eff)}`
+      : eff < 0 ? `devi ${fmt(-eff)} a ${this.nome(this.altro)}` : "non sposta il saldo";
+    const effHtml = eff
+      ? `<div class="conti-eff ${eff > 0 ? "pos" : "neg"}" aria-label="${esc(spiega)}">${eff > 0 ? "+" : "−"}${fmt(Math.abs(eff)).replace(" €", "")}</div>`
+      : `<div class="conti-eff zero" aria-label="${esc(spiega)}">—</div>`;
     const content = `
       <span class="conti-cat" aria-hidden="true">${c.emoji}</span>
       <div class="row-text">
@@ -157,7 +175,7 @@ export class ContiUI {
       </div>
       <div class="conti-amt" title="${esc(spiega)}">
         <div class="conti-tot">${fmt(m.importo_cent)}</div>
-        <div class="conti-eff ${eff >= 0 ? "pos" : "neg"}" aria-label="${esc(spiega)}">${eff >= 0 ? "+" : "−"}${fmt(Math.abs(eff)).replace(" €", "")}</div>
+        ${effHtml}
       </div>`;
     const li = this.ui._buildRow({
       id: m.id,
@@ -185,7 +203,7 @@ export class ContiUI {
     const r = conti.riepilogo(this.store.movimenti(), this.mese, this.io, this.diz);
     let h = this._head();
     h += `<div class="kpi-row">
-        <div class="kpi"><div class="kpi-lbl">Spese comuni</div><div class="kpi-val">${fmt(r.totale)}</div><div class="kpi-sub">${nSpese(r.n)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Spese del mese</div><div class="kpi-val">${fmt(r.totale)}</div><div class="kpi-sub">${nSpese(r.n)}</div></div>
         <div class="kpi"><div class="kpi-lbl">La tua parte</div><div class="kpi-val">${fmt(r.mia)}</div><div class="kpi-sub">&nbsp;</div></div>
       </div>`;
     if (r.n) {
@@ -220,40 +238,45 @@ export class ContiUI {
   }
 
   // --- form ------------------------------------------------------------------
-  /** mov = movimento da modificare; preset = valori iniziali di uno nuovo (es. Salda) */
+  /** mov = movimento da modificare; preset = valori iniziali di uno nuovo (es. Salda).
+   *  I soldi passati tra voi (Salda, prestiti) hanno il form ridotto: chi dà i soldi a chi. */
   apriForm(mov = null, preset = {}, titoloSheet = null) {
     const edit = Boolean(mov);
     const v = mov || preset;
     const io = this.io, altro = this.altro;
+    const soldi = Boolean(this.cat(v.categoria)?.trasferimento) && (edit || Boolean(titoloSheet));
     const pagato = v.pagato_da || io;
-    const div = v.divisione || "meta";
+    const quota = v.divisione ? conti.diChi({ pagato_da: pagato, divisione: v.divisione }) : "meta";
     const catSel = mov ? (mov.categoria_auto ? "" : mov.categoria || "") : preset.categoria || "";
     const importo = v.importo_cent ? (v.importo_cent / 100).toFixed(2).replace(".", ",") : "";
     const cats = Object.entries(this.diz?.categorie || {});
+    const opzQuota = [["meta", "A metà"], [io, "Tutta mia"], [altro, `Tutta di ${this.nome(altro)}`]];
     const html = `
       <label>Importo<input name="importo" class="in-importo" type="text" inputmode="decimal" autocomplete="off" required placeholder="0,00" value="${esc(importo)}"></label>
       <label>Titolo<input name="titolo" type="text" autocomplete="off" required placeholder="es. Spesa Coop" value="${esc(v.titolo || "")}"></label>
       <p class="form-hint conti-guess" id="conti-guess" hidden></p>
-      <div class="field"><span class="field-cap">Chi ha pagato</span>
+      <div class="field"><span class="field-cap">${soldi ? "Chi dà i soldi" : "Chi ha pagato"}</span>
         <div class="seg seg-full">${[io, altro].map((p) =>
           `<input type="radio" id="cp-${p}" name="pagato_da" value="${p}"${p === pagato ? " checked" : ""}><label for="cp-${p}">${p === io ? "Io" : esc(this.nome(p))}</label>`).join("")}
         </div></div>
-      <div class="field"><span class="field-cap">Come si divide</span>
-        <div class="seg seg-full">
-          <input type="radio" id="cd-meta" name="divisione" value="meta"${div === "meta" ? " checked" : ""}><label for="cd-meta">A metà</label>
-          <input type="radio" id="cd-tutto" name="divisione" value="tutto"${div === "tutto" ? " checked" : ""}><label for="cd-tutto" id="cd-tutto-lbl"></label>
-        </div></div>
+      ${soldi ? `<input type="hidden" name="divisione" value="${esc(v.divisione || "tutto")}">` : `
+      <div class="field"><span class="field-cap">Di chi è la spesa</span>
+        <div class="seg seg-full seg-3">${opzQuota.map(([val, lbl]) =>
+          `<input type="radio" id="cq-${val}" name="quota" value="${val}"${val === quota ? " checked" : ""}><label for="cq-${val}">${esc(lbl)}</label>`).join("")}
+        </div>
+        <p class="form-hint" id="conti-quota" hidden></p></div>`}
       <div class="row-2">
         <label>Data<input name="data" type="date" required value="${esc(v.data || conti.oggiIso())}"></label>
         <label>Categoria<select name="categoria"><option value="">Automatica</option>${cats.map(([k, c]) =>
           `<option value="${esc(k)}"${k === catSel ? " selected" : ""}>${c.emoji} ${esc(c.nome)}</option>`).join("")}</select></label>
       </div>
-      <p class="form-hint">${titoloSheet
+      <p class="form-hint">${soldi
         ? "Registralo quando i soldi sono passati davvero (bonifico, contanti, Revolut). Per un saldo parziale cambia l'importo."
         : "Con <b>Automatica</b> la categoria arriva dal titolo; se non la riconosce la sceglie il PC al prossimo giro di /burocrazia."}</p>
       ${edit ? `<button type="button" class="btn-danger" id="conti-del">Elimina</button>` : ""}`;
 
-    this.ui.openSheet(titoloSheet || (edit ? "Modifica spesa" : "Nuova spesa"), html, (d) => {
+    const titolo0 = titoloSheet || (soldi ? "Soldi tra voi" : edit ? "Modifica spesa" : "Nuova spesa");
+    this.ui.openSheet(titolo0, html, (d) => {
       const importo_cent = conti.parseImporto(d.importo);
       const titolo = (d.titolo || "").trim();
       if (!importo_cent || !titolo) return;
@@ -263,7 +286,8 @@ export class ContiUI {
         categoria = g ? g.categoria : null;
         categoria_auto = Boolean(g);
       }
-      const campi = { titolo, importo_cent, pagato_da: d.pagato_da, divisione: d.divisione, data: d.data, categoria, categoria_auto };
+      const divisione = soldi ? d.divisione : conti.divisioneDa(d.quota, d.pagato_da);
+      const campi = { titolo, importo_cent, pagato_da: d.pagato_da, divisione, data: d.data, categoria, categoria_auto };
       this.y = Number(d.data.slice(0, 4)); this.m = Number(d.data.slice(5, 7)); // mostra il mese della spesa
       if (edit) this.ui.run(this.store.modificaMovimento(mov.id, campi));
       else this.ui.run(this.store.aggiungiMovimento(campi));
@@ -273,8 +297,15 @@ export class ContiUI {
     const inImporto = form.elements.importo;
     const aggiorna = () => {
       inImporto.setCustomValidity(!inImporto.value || conti.parseImporto(inImporto.value) ? "" : "Importo non valido (es. 12,50)");
-      form.querySelector("#cd-tutto-lbl").textContent =
-        form.elements.pagato_da.value === io ? `Tutta per ${this.nome(altro)}` : "Tutta per me";
+      // chi deve cosa, in parole (la combinazione "chi ha pagato" + "di chi è")
+      const qh = form.querySelector("#conti-quota");
+      if (qh) {
+        const pag = form.elements.pagato_da.value, q = form.elements.quota.value;
+        qh.hidden = q === "meta";
+        if (q === pag) qh.textContent = "Non sposta il saldo: resta solo nei conti del mese.";
+        else if (q === io) qh.textContent = `Devi tutto a ${this.nome(altro)}.`;
+        else qh.textContent = `${this.nome(altro)} ti deve tutto.`;
+      }
       const hint = form.querySelector("#conti-guess");
       const titolo = form.elements.titolo.value.trim();
       hint.hidden = Boolean(form.elements.categoria.value) || !titolo;
