@@ -5,7 +5,7 @@
 // (snapshot) per la lettura offline. Qui si cache-a solo lo "shell" statico.
 // Le scritture offline non sono supportate in v1.
 
-const CACHE = "buro-v19"; // bump a ogni deploy per invalidare lo shell
+const CACHE = "buro-v20"; // bump a ogni deploy per invalidare lo shell
 
 // GitHub Pages dice ai browser di tenere ogni file 10 minuti (max-age=600): senza
 // "no-cache" un deploy poteva non vedersi, o vedersi a metà (file vecchi e nuovi
@@ -31,8 +31,10 @@ const SHELL = [
   "js/cal-ui.js",
   "js/conti.js",
   "js/conti-ui.js",
+  "js/notifiche.js",
   "icons/icon.svg",
   "icons/icon-vale.svg",
+  "icons/notifica.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -48,6 +50,26 @@ self.addEventListener("activate", (event) => {
     caches.keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
+  );
+});
+
+// Notifiche dei Conti: le manda il workflow notifica-conti.yml (vedi js/notifiche.js).
+self.addEventListener("push", (event) => {
+  const { titolo, testo } = event.data.json();
+  event.waitUntil(self.registration.showNotification(titolo, { body: testo, icon: "icons/notifica.png" }));
+});
+
+// Tocco sulla notifica: porta alla scheda Conti, nell'app già aperta se c'è.
+// Il filtro sullo scope serve perché sulla stessa origine c'è anche il Jukebox.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((finestre) => {
+      const app = finestre.find((c) => c.url.startsWith(self.registration.scope));
+      if (!app) return self.clients.openWindow(`${self.registration.scope}?tab=conti`);
+      app.postMessage({ apri: "conti" });
+      return app.focus();
+    })
   );
 });
 

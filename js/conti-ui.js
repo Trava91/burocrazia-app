@@ -3,6 +3,7 @@
 // La logica pura (importi, saldo, categoria dal titolo) sta in conti.js.
 
 import * as conti from "./conti.js";
+import * as notifiche from "./notifiche.js";
 import { MESI, GIORNI } from "./calendario.js";
 import { showToast } from "./ui.js";
 
@@ -26,6 +27,7 @@ export class ContiUI {
     this.m = Number(t.slice(5, 7));
     this.view = "movimenti";   // "movimenti" | "riepilogo"
     this.filtro = null;        // categoria scelta dal riepilogo ("" = da classificare)
+    this.notifiche = "no";     // stato delle notifiche su questo telefono (vedi notifiche.js)
   }
 
   // --- dati comodi ------------------------------------------------------------
@@ -43,6 +45,9 @@ export class ContiUI {
     document.querySelectorAll(".conti-subtabs button").forEach((b) =>
       b.addEventListener("click", () => { this.view = b.dataset.view; this.render(); }));
     $("#conti-body").addEventListener("click", (e) => this._onClick(e));
+    $("#conti-notifiche").addEventListener("click", (e) => {
+      if (e.target.closest("[data-attiva]")) this.attivaNotifiche();
+    });
     $("#conti-saldo").addEventListener("click", (e) => {
       if (e.target.closest("[data-salda]")) this.salda();
       if (e.target.closest("[data-ricarica]")) this.ui.run(this.store.ricarica());
@@ -76,9 +81,28 @@ export class ContiUI {
     document.querySelectorAll(".conti-subtabs button").forEach((b) =>
       b.classList.toggle("active", b.dataset.view === this.view));
     if (!this.store.data.scadenze) { body.innerHTML = ""; $("#conti-saldo").innerHTML = ""; return; } // non ancora caricati
+    this._renderNotifiche();
     this._renderSaldo();
     if (this.view === "riepilogo") body.innerHTML = this._htmlRiepilogo();
     else this._renderMovimenti(body);
+  }
+
+  _renderNotifiche() {
+    $("#conti-notifiche").innerHTML = this.notifiche !== "da-attivare" ? "" : `<div class="saldo-card">
+        <div><div class="saldo-lbl">🔔 Notifiche</div><div class="saldo-note">Ti avviso quando ${esc(this.nome(this.altro))} aggiunge, cambia o elimina una spesa.</div></div>
+        <button type="button" class="btn-salda" data-attiva>Attiva</button>
+      </div>`;
+  }
+
+  async attivaNotifiche() {
+    try {
+      this.notifiche = await notifiche.attiva(this.store);
+      if (this.notifiche === "attive") showToast("Notifiche attive.", "ok");
+      if (this.notifiche === "bloccate") showToast("Notifiche bloccate: riattivale dalle impostazioni del telefono.", "err");
+    } catch (err) {
+      showToast(err?.message || "Non sono riuscito ad attivare le notifiche.", "err");
+    }
+    this.render();
   }
 
   _renderSaldo() {
@@ -289,7 +313,8 @@ export class ContiUI {
       const divisione = soldi ? d.divisione : conti.divisioneDa(d.quota, d.pagato_da);
       const campi = { titolo, importo_cent, pagato_da: d.pagato_da, divisione, data: d.data, categoria, categoria_auto };
       this.y = Number(d.data.slice(0, 4)); this.m = Number(d.data.slice(5, 7)); // mostra il mese della spesa
-      if (edit) this.ui.run(this.store.modificaMovimento(mov.id, campi));
+      if (titoloSheet) this._confermaSalda(campi); // titoloSheet ce l'ha solo Salda
+      else if (edit) this.ui.run(this.store.modificaMovimento(mov.id, campi));
       else this.ui.run(this.store.aggiungiMovimento(campi));
     });
 
@@ -335,6 +360,24 @@ export class ContiUI {
       categoria: conti.categoriaSoldi(this.diz),
       data: conti.oggiIso(),
     }, "Salda il conto");
+  }
+
+  /** Ultimo passo di Salda: il movimento si scrive solo dopo il sì. */
+  _confermaSalda(campi) {
+    const importo = fmt(campi.importo_cent);
+    const frase = campi.pagato_da === this.io
+      ? `Dai ${importo} a ${this.nome(this.altro)}.`
+      : `${this.nome(campi.pagato_da)} ti dà ${importo}.`;
+    const box = this.ui.openCustomSheet("Confermi il saldo?", `
+      <p class="conti-conferma">${esc(frase)}</p>
+      <button type="button" class="btn-primary" data-si>Sì, salda</button>
+      <button type="button" class="btn-secondary" data-no>Annulla</button>`);
+    this.ui.sheetKind = "form"; // così un ricaricamento dei dati non la sostituisce col giorno del calendario
+    box.querySelector("[data-si]").addEventListener("click", () => {
+      this.ui.closeSheet();
+      this.ui.run(this.store.aggiungiMovimento(campi));
+    });
+    box.querySelector("[data-no]").addEventListener("click", () => this.ui.closeSheet());
   }
 
   /** Elimina con 4 secondi per annullare (sono soldi: meglio un ripensamento). */

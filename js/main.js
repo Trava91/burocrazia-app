@@ -5,8 +5,9 @@ import { GitHubApi } from "./api.js";
 import { UI, showToast, TAB_INVIA } from "./ui.js";
 import { CalendarUI } from "./cal-ui.js";
 import { ContiUI } from "./conti-ui.js";
+import * as notifiche from "./notifiche.js";
 
-const APP_VERSION = "1.3.2";
+const APP_VERSION = "1.4.0";
 const PAT_URL = "https://github.com/settings/personal-access-tokens/new";
 
 const $ = (s) => document.querySelector(s);
@@ -77,6 +78,9 @@ async function bootApp() {
   ultimoCaricamento = Date.now();
   try {
     await store.load();
+    notifiche.controlla(store)
+      .then((stato) => { contiUI.notifiche = stato; contiUI.render(); })
+      .catch(() => { /* senza rete riprova al prossimo avvio */ });
   } catch (err) {
     showToast(err?.message || "Caricamento fallito.", "err");
     // token non valido → torna all'onboarding così può correggerlo
@@ -96,6 +100,14 @@ document.addEventListener("visibilitychange", () => {
   store.ricarica().catch(() => { /* resta la vista di prima; il pulsante Riprova è nei Conti */ });
   // il browser cerca versioni nuove dell'app solo all'apertura: qui anche alla ripresa
   navigator.serviceWorker?.getRegistration().then((r) => r?.update()).catch(() => {});
+});
+
+// Tocco su una notifica dei Conti con l'app già aperta (vedi sw.js).
+navigator.serviceWorker?.addEventListener("message", (e) => {
+  if (e.data?.apri !== "conti" || !store.hasToken()) return;
+  ui.switchTab("conti");
+  ultimoCaricamento = Date.now();
+  store.ricarica().catch(() => {});
 });
 
 // --- impostazioni ----------------------------------------------------------
@@ -189,7 +201,9 @@ function bootstrapFromUrl() {
   if (PROFILI[profilo]) store.setProfilo(profilo); // (lo salva già lo script in <head>)
   const token = params.get("setup");
   if (!token) {
-    if (profilo) history.replaceState(null, "", location.pathname);
+    const daNotifica = params.get("tab") === "conti"; // app aperta toccando una notifica
+    if (daNotifica) ui.switchTab("conti");
+    if (profilo || daNotifica) history.replaceState(null, "", location.pathname);
     return false;
   }
   history.replaceState(null, "", location.pathname);

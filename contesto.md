@@ -78,6 +78,19 @@ barre per categoria di una sola tinta; tocco su una categoria = movimenti filtra
 - **Anteprima:** `?tab=conti&conti=<file di prova>` (+ `contivista=riepilogo`, `contimese`,
   `contiform=1`). I movimenti di prova vanno **fuori dai repo** (questo è pubblico).
 
+## Notifiche dei Conti (dal 07/11/2026)
+
+Ogni spesa aggiunta, modificata o eliminata dal telefono arriva come notifica all'**altra
+persona**, anche ad app chiusa. Niente server: il commit dell'app su `conti.json` fa partire
+`notifica-conti.yml` (repo scadenzario), che con `notify_conti.py` confronta il file con la
+versione prima e capisce chi è stato dal commit (`app:` / `app-vale:`). I commit del PC
+(`/burocrazia` che classifica) non notificano. Latenza: il tempo di un giro di Actions, circa 1 minuto.
+- **Attivazione:** una volta per telefono, col riquadro 🔔 in cima alla scheda Conti. L'iscrizione
+  va in `iscrizioni-push.json` (massimo 3 telefoni a persona); logica in `js/notifiche.js`.
+- **Chiavi VAPID:** la pubblica è in `js/notifiche.js`, la privata solo nel secret
+  `VAPID_PRIVATE_KEY`. Se si cambiano, entrambi devono ripremere Attiva.
+- **Salda** chiede conferma dopo il form, con importo e direzione: il movimento si scrive solo col sì.
+
 ## Aggiornamenti dell'app (dal 02/11/2026)
 
 GitHub Pages fa tenere ai browser ogni file 10 minuti (`max-age=600`): con il service
@@ -142,8 +155,8 @@ suo, fa **sempre `git pull`** prima di lavorare.
 
 ## Limiti noti (per onestà)
 
-- **Niente push dall'app**: gli avvisi restano a Telegram (una PWA notifica solo con un
-  server che spinge → fuori dal "zero server").
+- **Push dall'app solo per i Conti** (vedi "Notifiche dei Conti"): gli avvisi di scadenze e
+  appuntamenti restano a Telegram.
 - **Scritture offline non supportate in v1**: offline si legge (snapshot in `localStorage`),
   non si scrive. Coda offline → eventuale Fase 2.
 - **Cattura vocali/foto**: non avviene nell'app (richiede whisper/visione sul PC) — si fa

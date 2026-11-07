@@ -39,9 +39,10 @@ const FILES = {
   agenda: { path: "agenda.json", key: "appuntamenti" },
   conti: { path: "conti.json", key: "movimenti" },
   categorie: { path: "categorie-conti.json", key: "categorie" }, // sola lettura: lo aggiorna il PC
+  iscrizioni: { path: "iscrizioni-push.json", key: "persone" },  // telefoni che ricevono le notifiche dei Conti
 };
 // File del calendario e dei conti: se mancano (404) l'app parte lo stesso.
-const OPTIONAL = new Set(["turni", "agenda", "conti", "categorie"]);
+const OPTIONAL = new Set(["turni", "agenda", "conti", "categorie", "iscrizioni"]);
 const EMPTY = { agenda: { appuntamenti: [] }, conti: { movimenti: [] } };
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -389,6 +390,18 @@ export class Store {
   // --- conti di coppia (spese divise) --------------------------------------
   movimenti() { return this.list("conti"); }
   dizConti() { return this.data.categorie; }
+
+  /** Iscrive questo telefono alle notifiche della persona del profilo: massimo 3
+   *  telefoni a testa (così quelli morti escono da soli) e mai su due persone. */
+  salvaIscrizione(sub) {
+    const mie = this.data.iscrizioni?.persone?.[this.profilo] || [];
+    if (mie.some((x) => x.endpoint === sub.endpoint)) return Promise.resolve(false);
+    return this.mutate("iscrizioni", (persone) => {
+      const altrove = Object.fromEntries(Object.entries(persone).map(([p, lista]) =>
+        [p, lista.filter((x) => x.endpoint !== sub.endpoint)]));
+      return { ...altrove, [this.profilo]: [sub, ...(altrove[this.profilo] || [])].slice(0, 3) };
+    }, "app: notifiche conti attivate");
+  }
   findMovimento(id) { return this.movimenti().find((m) => m.id === id); }
 
   aggiungiMovimento(campi) {

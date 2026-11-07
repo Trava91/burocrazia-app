@@ -54,7 +54,7 @@
   const base = "../../scadenzario/";
   const files = {};
   for (const f of ["scadenzario.json", "memoria.json", "lista-spesa.json", "turni.json", "agenda.json",
-                   "conti.json", "categorie-conti.json"]) {
+                   "conti.json", "categorie-conti.json", "iscrizioni-push.json"]) {
     const r = await fetch(base + f);
     files[f] = r.ok ? await r.json() : null;
   }
@@ -127,6 +127,11 @@
     f.dispatchEvent(new Event("input"));
   }
   window.__store = store; window.__cal = calUI; window.__conti = contiUI;
+  if (q.get("notifiche")) { contiUI.notifiche = q.get("notifiche"); contiUI.render(); } // ?notifiche=da-attivare
+  if (q.get("salda")) { // ?salda=1 → il form di Salda già inviato: si vede la conferma
+    contiUI.salda();
+    document.getElementById("sheet-form").requestSubmit();
+  }
 
   // ?prova=1 → collaudo dello store sul finto GitHub (fila, conflitto, rollback).
   // Risultati in <pre id="prova"> e nel titolo; leggibili con chrome --dump-dom.
@@ -231,6 +236,35 @@
       F("conti.json").movimenti.some((x) => x.titolo === "Borsa" && x.divisione === "nessuna") && saldoDi(store.movimenti(), "nicolo") === s1);
     ok("scheda Conti accesa, Invia spenta",
       !document.querySelector('.tab[data-tab="conti"]').hidden && document.querySelector('.tab[data-tab="invia"]').hidden);
+
+    // notifiche: un telefono solo una volta, su una persona sola, massimo 3
+    const sub = (e) => ({ endpoint: e, keys: { p256dh: "x", auth: "y" } });
+    const isc = () => F("iscrizioni-push.json").persone;
+    await store.salvaIscrizione(sub("tel-1"));
+    await store.salvaIscrizione(sub("tel-1"));
+    ok("notifiche: telefono salvato una volta sola", isc()[store.profilo].filter((x) => x.endpoint === "tel-1").length === 1);
+    for (const e of ["tel-2", "tel-3", "tel-4"]) await store.salvaIscrizione(sub(e));
+    ok("notifiche: massimo 3, l'ultimo davanti", isc()[store.profilo].length === 3 && isc()[store.profilo][0].endpoint === "tel-4");
+    const altro = store.profilo === "valentina" ? "nicolo" : "valentina", primo = store.profilo;
+    store.setProfilo(altro);
+    await store.salvaIscrizione(sub("tel-4"));
+    ok("notifiche: cambiando profilo il telefono passa all'altra persona",
+      isc()[altro].some((x) => x.endpoint === "tel-4") && !isc()[primo].some((x) => x.endpoint === "tel-4"));
+    store.setProfilo(primo);
+
+    // Salda: niente movimento finché non si dice sì
+    const nMov = () => F("conti.json").movimenti.length;
+    await store.aggiungiMovimento({ titolo: "Per avere un saldo", importo_cent: 2000, pagato_da: "nicolo", divisione: "tutto", data: "2026-11-02" });
+    const n0 = nMov();
+    const sf = () => document.getElementById("sheet-form");
+    const aspetta = async () => { await new Promise((r) => setTimeout(r, 0)); await store._chain.conti; };
+    contiUI.salda(); sf().requestSubmit();
+    ok("salda: dopo Salva chiede conferma", document.getElementById("sheet-title").textContent === "Confermi il saldo?");
+    ok("salda: prima del sì non scrive", nMov() === n0);
+    sf().querySelector("[data-no]").click(); await aspetta();
+    ok("salda: Annulla non scrive e chiude", nMov() === n0 && document.getElementById("sheet").hidden);
+    contiUI.salda(); sf().requestSubmit(); sf().querySelector("[data-si]").click(); await aspetta();
+    ok("salda: Sì scrive il movimento", nMov() === n0 + 1);
 
     const atteso = store.profilo === "valentina" ? "app-vale:" : "app:";
     ok(`commit con l'etichetta ${atteso}`, String(window.__ultimoCommit).startsWith(atteso));
