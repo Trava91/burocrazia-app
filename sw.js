@@ -5,7 +5,7 @@
 // (snapshot) per la lettura offline. Qui si cache-a solo lo "shell" statico.
 // Le scritture offline non sono supportate in v1.
 
-const CACHE = "buro-v20"; // bump a ogni deploy per invalidare lo shell
+const CACHE = "buro-v21"; // bump a ogni deploy per invalidare lo shell
 
 // GitHub Pages dice ai browser di tenere ogni file 10 minuti (max-age=600): senza
 // "no-cache" un deploy poteva non vedersi, o vedersi a metà (file vecchi e nuovi

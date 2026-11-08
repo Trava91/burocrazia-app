@@ -7,7 +7,7 @@ import { CalendarUI } from "./cal-ui.js";
 import { ContiUI } from "./conti-ui.js";
 import * as notifiche from "./notifiche.js";
 
-const APP_VERSION = "1.4.0";
+const APP_VERSION = "1.4.1";
 const PAT_URL = "https://github.com/settings/personal-access-tokens/new";
 
 const $ = (s) => document.querySelector(s);

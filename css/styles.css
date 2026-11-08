@@ -154,6 +154,9 @@ h2 { font-size: 1rem; font-weight: 600; margin: 0; }
 .row-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .row-title.expanded { white-space: normal; }
 .row-title:not(.expanded) { white-space: nowrap; }
+.row.spuntata .row-title { text-decoration: line-through; color: var(--muted); font-weight: 400; }
+.row.spuntata .chk { display: grid; place-items: center; background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
+.row.spuntata .chk::after { content: "✓"; font-size: .9rem; font-weight: 700; line-height: 1; }
 .row-sub { color: var(--muted); font-size: .82rem; margin-top: 2px; }
 .row-sub.urgent { color: var(--danger); font-weight: 600; }
 

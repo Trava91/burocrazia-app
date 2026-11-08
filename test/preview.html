@@ -237,6 +237,20 @@
     ok("scheda Conti accesa, Invia spenta",
       !document.querySelector('.tab[data-tab="conti"]').hidden && document.querySelector('.tab[data-tab="invia"]').hidden);
 
+    // spesa: la spunta toglie la voce solo dopo 5 s, un altro tocco la salva
+    await store.aggiungiSpesa("Voce di prova");
+    const vp = store.spesaDaComprare().find((x) => x.testo === "Voce di prova");
+    const inLista = () => F("lista-spesa.json").voci.some((x) => x.id === vp.id);
+    ui._spunta(vp.id);
+    ok("spesa: spuntata resta in lista", inLista() && document.querySelector(`#list-spesa li[data-id="${vp.id}"]`).classList.contains("spuntata"));
+    ui._spunta(vp.id);
+    await new Promise((r) => setTimeout(r, 5200));
+    ok("spesa: ritoccata non se ne va", inLista() && !ui.spuntate.size);
+    ui._spunta(vp.id);
+    await new Promise((r) => setTimeout(r, 5200));
+    await store._chain.spesa;
+    ok("spesa: dopo 5 s se ne va", !inLista());
+
     // notifiche: un telefono solo una volta, su una persona sola, massimo 3
     const sub = (e) => ({ endpoint: e, keys: { p256dh: "x", auth: "y" } });
     const isc = () => F("iscrizioni-push.json").persone;

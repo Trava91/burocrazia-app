@@ -18,6 +18,8 @@ function fmtDataEstesa(iso) {
   return d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
+const SPUNTA_MS = 5000; // quanto resta sbarrata una voce della spesa prima di andarsene
+
 // --- toast (anche standalone, usato da main.js) -----------------------------
 // opts: { actionLabel, onAction, duration }
 let toastTimer = null;
@@ -59,6 +61,7 @@ export class UI {
     this.cal = null;     // CalendarUI, collegata da main.js
     this.conti = null;   // ContiUI, collegata da main.js
     this.sheetKind = null; // "form" | "giorno" | null (sheet chiuso)
+    this.spuntate = new Map(); // voci spesa sbarrate che stanno per andarsene: id → timer
   }
 
   init() {
@@ -239,9 +242,26 @@ export class UI {
     return row;
   }
 
+  /** Spunta di una voce: si sbarra e se ne va dopo 5 s; un altro tocco la rimette a posto.
+   *  Ogni voce ha il suo timer, così al supermercato se ne possono spuntare tante di fila. */
+  _spunta(id) {
+    if (this.spuntate.has(id)) {
+      clearTimeout(this.spuntate.get(id));
+      this.spuntate.delete(id);
+    } else {
+      this.spuntate.set(id, setTimeout(() => {
+        this.spuntate.delete(id);
+        // nel frattempo può averla tolta uno swipe o l'altro telefono
+        if (this.store.spesaDaComprare().some((v) => v.id === id)) this.run(this.store.comprata(id));
+      }, SPUNTA_MS));
+    }
+    this.renderSpesa();
+  }
+
   _spesaRow(v) {
+    const spuntata = this.spuntate.has(v.id);
     const content = `
-      <span class="chk" role="checkbox" aria-checked="false" data-check></span>
+      <span class="chk" role="checkbox" aria-checked="${spuntata}" data-check></span>
       <div class="row-text"><div class="row-title">${esc(v.testo)}</div></div>`;
     const row = this._buildRow({
       id: v.id,
@@ -251,10 +271,17 @@ export class UI {
         { cls: "act-del", label: "🗑️", run: () => this.run(this.store.eliminaSpesa(v.id)) },
       ],
     });
-    // checkbox = comprata (rimuove)
-    row.querySelector("[data-check]")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.run(this.store.comprata(v.id));
+    row.classList.toggle("spuntata", spuntata);
+    // casella = spunta; una voce già sbarrata si rimette a posto toccandola ovunque (non con uno swipe)
+    const fg = row.querySelector(".row-fg");
+    // (pointerup e non click: lo swipe cattura il dito sulla riga e il click può non arrivare alla casella)
+    let inizio = null;
+    fg.addEventListener("pointerdown", (e) => {
+      inizio = { x: e.clientX, y: e.clientY, casella: Boolean(e.target.closest("[data-check]")) };
+    });
+    fg.addEventListener("pointerup", (e) => {
+      const tocco = inizio && Math.abs(e.clientX - inizio.x) < 10 && Math.abs(e.clientY - inizio.y) < 10;
+      if (tocco && (spuntata || inizio.casella)) this._spunta(v.id);
     });
     return row;
   }
