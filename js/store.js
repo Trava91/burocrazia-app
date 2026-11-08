@@ -324,12 +324,6 @@ export class Store {
       `app: comprata ${id}`);
   }
 
-  eliminaSpesa(id) {
-    return this.mutate("spesa",
-      (arr) => arr.filter((v) => v.id !== id),
-      `app: elimina voce spesa ${id}`);
-  }
-
   // --- calendario: viste ---------------------------------------------------
   get turni() { return this.data.turni; }
   appuntamenti() { return this.list("agenda"); }

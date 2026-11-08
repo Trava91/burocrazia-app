@@ -18,7 +18,11 @@ function fmtDataEstesa(iso) {
   return d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
-const SPUNTA_MS = 5000; // quanto resta sbarrata una voce della spesa prima di andarsene
+// Voci della spesa barrate: ricordate su questo telefono, anche chiudendo l'app.
+const SPUNTATE = "buro.spesaSpuntate";
+function leggiSpuntate() {
+  try { return new Set(JSON.parse(localStorage.getItem(SPUNTATE)) || []); } catch { return new Set(); }
+}
 
 // --- toast (anche standalone, usato da main.js) -----------------------------
 // opts: { actionLabel, onAction, duration }
@@ -61,7 +65,7 @@ export class UI {
     this.cal = null;     // CalendarUI, collegata da main.js
     this.conti = null;   // ContiUI, collegata da main.js
     this.sheetKind = null; // "form" | "giorno" | null (sheet chiuso)
-    this.spuntate = new Map(); // voci spesa sbarrate che stanno per andarsene: id → timer
+    this.spuntate = leggiSpuntate(); // id delle voci spesa barrate
   }
 
   init() {
@@ -179,6 +183,12 @@ export class UI {
   renderSpesa() {
     const list = $("#list-spesa");
     const items = this.store.spesaDaComprare();
+    // voci sparite (qui, dall'altro telefono, da Telegram): dimenticale, o una riscritta nascerebbe già barrata
+    if (this.store.data.spesa) {
+      const vive = new Set(items.map((v) => v.id));
+      for (const id of this.spuntate) if (!vive.has(id)) this.spuntate.delete(id);
+      this._salvaSpuntate();
+    }
     list.innerHTML = "";
     if (!items.length) {
       list.appendChild(this._empty("Lista vuota."));
@@ -242,53 +252,45 @@ export class UI {
     return row;
   }
 
-  /** Spunta di una voce: si sbarra e se ne va dopo 5 s; un altro tocco la rimette a posto.
-   *  Ogni voce ha il suo timer, così al supermercato se ne possono spuntare tante di fila. */
+  _salvaSpuntate() {
+    try { localStorage.setItem(SPUNTATE, JSON.stringify([...this.spuntate])); } catch { /* best-effort */ }
+  }
+
+  /** Tocco su una voce: la barra, o le toglie la barra. Da sola non si cancella mai. */
   _spunta(id) {
-    if (this.spuntate.has(id)) {
-      clearTimeout(this.spuntate.get(id));
-      this.spuntate.delete(id);
-    } else {
-      this.spuntate.set(id, setTimeout(() => {
-        this.spuntate.delete(id);
-        // nel frattempo può averla tolta uno swipe o l'altro telefono
-        if (this.store.spesaDaComprare().some((v) => v.id === id)) this.run(this.store.comprata(id));
-      }, SPUNTA_MS));
-    }
+    if (!this.spuntate.delete(id)) this.spuntate.add(id);
+    this._salvaSpuntate();
     this.renderSpesa();
   }
 
   _spesaRow(v) {
     const spuntata = this.spuntate.has(v.id);
     const content = `
-      <span class="chk" role="checkbox" aria-checked="${spuntata}" data-check></span>
+      <span class="chk" role="checkbox" aria-checked="${spuntata}"></span>
       <div class="row-text"><div class="row-title">${esc(v.testo)}</div></div>`;
     const row = this._buildRow({
       id: v.id,
       content,
-      primary: { cls: "act-done", label: "✓", run: () => this.run(this.store.comprata(v.id)) },
-      secondary: [
-        { cls: "act-del", label: "🗑️", run: () => this.run(this.store.eliminaSpesa(v.id)) },
-      ],
+      primary: null,
+      // l'unico modo di cancellare una voce: barrarla, poi swipe da destra a sinistra
+      elimina: spuntata ? () => this.run(this.store.comprata(v.id)) : null,
     });
     row.classList.toggle("spuntata", spuntata);
-    // casella = spunta; una voce già sbarrata si rimette a posto toccandola ovunque (non con uno swipe)
+    // tocco ovunque sulla voce (non uno swipe) = barra / togli la barra
+    // (pointerup e non click: lo swipe cattura il dito sulla riga e il click può non arrivare)
     const fg = row.querySelector(".row-fg");
-    // (pointerup e non click: lo swipe cattura il dito sulla riga e il click può non arrivare alla casella)
     let inizio = null;
-    fg.addEventListener("pointerdown", (e) => {
-      inizio = { x: e.clientX, y: e.clientY, casella: Boolean(e.target.closest("[data-check]")) };
-    });
+    fg.addEventListener("pointerdown", (e) => { inizio = { x: e.clientX, y: e.clientY }; });
     fg.addEventListener("pointerup", (e) => {
-      const tocco = inizio && Math.abs(e.clientX - inizio.x) < 10 && Math.abs(e.clientY - inizio.y) < 10;
-      if (tocco && (spuntata || inizio.casella)) this._spunta(v.id);
+      if (inizio && Math.abs(e.clientX - inizio.x) < 10 && Math.abs(e.clientY - inizio.y) < 10) this._spunta(v.id);
     });
     return row;
   }
 
   // Costruisce una <li> con swipe: destra → primary (azione diretta),
   // sinistra → rivela i secondary (tap esplicito).
-  _buildRow({ id, content, primary, secondary = [] }) {
+  // elimina = funzione: lo swipe a sinistra oltre la soglia la esegue, senza pulsanti.
+  _buildRow({ id, content, primary, secondary = [], elimina = null }) {
     const li = document.createElement("li");
     li.className = "row";
     li.dataset.id = id;
@@ -312,13 +314,19 @@ export class UI {
       b.addEventListener("click", () => { this.closeOpenRow(); a.run(); });
       right.appendChild(b);
     }
+    if (elimina) { // solo un segnale sotto la riga: si cancella con lo swipe, non toccandolo
+      const cestino = document.createElement("div");
+      cestino.className = "act act-del";
+      cestino.textContent = "🗑️";
+      right.appendChild(cestino);
+    }
 
     const fg = document.createElement("div");
     fg.className = "row-fg animate";
     fg.innerHTML = content;
 
     li.append(left, right, fg);
-    this._wireSwipe(li, fg, { primary, revealWidth: secondary.length * 72 });
+    this._wireSwipe(li, fg, { primary, revealWidth: secondary.length * 72, elimina });
     return li;
   }
 
@@ -348,7 +356,7 @@ export class UI {
     });
   }
 
-  _wireSwipe(li, fg, { primary, revealWidth }) {
+  _wireSwipe(li, fg, { primary, revealWidth, elimina }) {
     let startX = 0, startY = 0, startTime = 0, dx = 0, dragging = false, decided = false, horizontal = false;
     const TRIGGER = 88;      // soglia distanza per far scattare la primary (swipe destra)
     const FLICK_V = 0.45;    // px/ms: uno swipe veloce apre i secondary anche su poca distanza
@@ -377,7 +385,8 @@ export class UI {
       if (!horizontal) return;
       e.preventDefault();
       // limiti: a sinistra fino a revealWidth, a destra fino a TRIGGER+un po'
-      dx = Math.max(-revealWidth - 20, Math.min(primary ? TRIGGER + 30 : 0, mx));
+      const minX = elimina ? -li.offsetWidth : revealWidth ? -revealWidth - 20 : 0;
+      dx = Math.max(minX, Math.min(primary ? TRIGGER + 30 : 0, mx));
       setX(dx);
     };
 
@@ -388,6 +397,11 @@ export class UI {
       fg.classList.add("animate");
       const dt = Math.max(1, performance.now() - startTime);
       const velocity = dx / dt; // px/ms, negativo = verso sinistra
+      if (elimina && dx < -TRIGGER) {
+        setX(-li.offsetWidth);          // esce a sinistra, poi si cancella
+        setTimeout(elimina, 200);
+        return;
+      }
       if (primary && dx > TRIGGER) {
         // swipe destra completo → chiede conferma annullabile
         setX(0);

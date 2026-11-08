@@ -91,6 +91,15 @@ versione prima e capisce chi è stato dal commit (`app:` / `app-vale:`). I commi
   `VAPID_PRIVATE_KEY`. Se si cambiano, entrambi devono ripremere Attiva.
 - **Salda** chiede conferma dopo il form, con importo e direzione: il movimento si scrive solo col sì.
 
+## Spunta della spesa (dal 08/11/2026)
+
+**L'unico modo di cancellare una voce:** toccarla (si barra, un altro tocco toglie la barra) e
+poi swipe da destra a sinistra oltre 88 px. Niente timer, niente swipe a destra, niente cestino:
+sono stati provati e tolti (08/11, richiesta di Nicolò). Le voci barrate stanno nel `localStorage`
+del telefono (`buro.spesaSpuntate`): restano chiudendo l'app ma l'altro telefono non le vede; Telegram e PC
+restano canali a parte. Il tocco si legge da `pointerdown`/`pointerup`, non da `click`: la cattura
+del puntatore dello swipe può non farlo arrivare.
+
 ## Aggiornamenti dell'app (dal 02/11/2026)
 
 GitHub Pages fa tenere ai browser ogni file 10 minuti (`max-age=600`): con il service
